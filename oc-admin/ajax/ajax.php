@@ -471,147 +471,139 @@
                     $maintenance_file = ABS_PATH . '.maintenance';
                     $fileHandler = @fopen($maintenance_file, 'w');
                     fclose($fileHandler);
-
-                    /***********************
-                     **** DOWNLOAD FILE ****
-                     ***********************/
-                    if (Params::getParam('file') != '') {
-
-                        $tmp = explode("/", Params::getParam('file'));
-                        $filename = end($tmp);
-                        $result = osc_downloadFile(Params::getParam('file'), $filename);
-
-                        if ($result) { // Everything is OK, continue
-                            /**********************
-                             ***** UNZIP FILE *****
-                             **********************/
-                            @mkdir(ABS_PATH . 'oc-temp', 0777);
-                            $res = osc_unzip_file(osc_content_path() . 'downloads/' . $filename, ABS_PATH . 'oc-temp/');
-                            if ($res == 1) { // Everything is OK, continue
-                                /**********************
-                                 ***** COPY FILES *****
-                                 **********************/
-                                $fail = -1;
-                                if ($handle = opendir(ABS_PATH . 'oc-temp')) {
-                                    $fail = 0;
-                                    while (false !== ($_file = readdir($handle))) {
-                                        if ($_file != '.' && $_file != '..' && $_file != 'remove.list' && $_file != 'upgrade.sql' && $_file != 'customs.actions') {
-                                            $data = osc_copy(ABS_PATH . "oc-temp/" . $_file, ABS_PATH . $_file);
-                                            if ($data == false) {
-                                                $fail = 1;
-                                            };
-                                        }
-                                    }
-                                    closedir($handle);
-
-                                    if ($fail == 0) { // Everything is OK, continue
-                                        /**********************
-                                         **** REMOVE FILES ****
-                                         **********************/
-                                        if (file_exists(ABS_PATH . 'oc-temp/remove.list')) {
-                                            $lines = file(ABS_PATH . 'oc-temp/remove.list', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                                            foreach ($lines as $line_num => $r_file) {
-                                                $unlink = @unlink(ABS_PATH . $r_file);
-                                                if (!$unlink) {
-                                                    $remove_error_msg .= sprintf(__('Error removing file: %s'), $r_file) . "<br/>";
-                                                }
-                                            }
-                                        }
-                                        // Removing files is not important for the rest of the proccess
-                                        // We will inform the user of the problems but the upgrade could continue
-                                        /************************
-                                         *** UPGRADE DATABASE ***
-                                         ************************/
-                                        $error_queries = array();
-                                        if (file_exists(osc_lib_path() . 'osclass/installer/struct.sql')) {
-                                            $sql = file_get_contents(osc_lib_path() . 'osclass/installer/struct.sql');
-                                            
-                                            $conn = DBConnectionClass::newInstance();
-                                            $c_db = $conn->getOsclassDb() ;
-                                            $comm = new DBCommandClass( $c_db ) ;
-                                            $error_queries = $comm->updateDB( str_replace('/*TABLE_PREFIX*/', DB_TABLE_PREFIX, $sql) ) ;
-                                            
-                                        }
-                                        if ($error_queries[0]) { // Everything is OK, continue
-                                            /**********************************
-                                             ** EXECUTING ADDITIONAL ACTIONS **
-                                             **********************************/
-                                            if (file_exists(osc_lib_path() . 'osclass/upgrade-funcs.php')) {
-                                                // There should be no errors here
-                                                define('AUTO_UPGRADE', true);
-                                                require_once osc_lib_path() . 'osclass/upgrade-funcs.php';
-                                            }
-                                            // Additional actions is not important for the rest of the proccess
-                                            // We will inform the user of the problems but the upgrade could continue
-                                            /****************************
-                                             ** REMOVE TEMPORARY FILES **
-                                             ****************************/
-                                            $path = ABS_PATH . 'oc-temp';
-                                            $rm_errors = 0;
-                                            $dir = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::CHILD_FIRST);
-                                            for ($dir->rewind(); $dir->valid(); $dir->next()) {
-                                                if ($dir->isDir()) {
-                                                    if ($dir->getFilename() != '.' && $dir->getFilename() != '..') {
-                                                        if (!rmdir($dir->getPathname())) {
-                                                            $rm_errors++;
-                                                        }
-                                                    }
-                                                } else {
-                                                    if (!unlink($dir->getPathname())) {
-                                                        $rm_errors++;
-                                                    }
-                                                }
-                                            }
-                                            if (!rmdir($path)) {
-                                                $rm_errors++;
-                                            }
-                                            $deleted = @unlink(ABS_PATH . '.maintenance');
-                                            if ($rm_errors == 0) {
-                                                $message = __('Everything was OK! Your OSClass installation is updated');
-                                            } else {
-                                                $message = __('Almost everything was OK! Your OSClass installation is updated, but there were some errors removing temporary files. Please, remove manually the "oc-temp" folder');
-                                                $error = 6; // Some errors removing files
-                                            }
-                                        } else {
-                                            $sql_error_msg = $error_queries[2];
-                                            $message = __('Problems upgrading the database');
-                                            $error = 5; // Problems upgrading the database		                
-                                        }
-                                    } else {
-                                        $message = __('Problems copying files. Maybe permissions are not correct');
-                                        $error = 4; // Problems copying files. Maybe permissions are not correct
-                                    }
-                                } else {
-                                    $message = __('Nothing to copy');
-                                    $error = 99; // Nothing to copy. THIS SHOULD NEVER HAPPENS, means we dont update any file!
-                                }
-                            } else {
-                                $message = __('Unzip failed');
-                                $error = 3; // Unzip failed
-                            }
-                        } else {
-                            $message = __('Download failed');
-                            $error = 2; // Download failed
-                        }
-                    } else {
+                    
+                    if (Params::getParam('file') == '') {
                         $message = __('Missing download URL');
                         $error = 1; // Missing download URL
+                        $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
+                        break;
                     }
-
-                    if ($remove_error_msg != '') {
-                        if ($error == 0) {
-                            $message .= "<br /><br />" . __('We had some errors removing files, those are not super-sensitive errors, so we continued upgrading your installation. Please remove the following files (you already have OSClass upgraded, but to ensure maximun performance)');
+                    
+                    // Download file
+                    $tmp = explode("/", Params::getParam('file'));
+                    $filename = end($tmp);
+                    $result = osc_downloadFile(Params::getParam('file'), $filename);
+                    
+                    if(!$result) {
+                        $message = __('Download failed');
+                        $error = 2; // Download failed
+                        $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
+                        break;
+                    }
+                    
+                    // Unzip files
+                    @mkdir(ABS_PATH . 'oc-temp', 0777);
+                    $res = osc_unzip_file(osc_content_path() . 'downloads/' . $filename, ABS_PATH . 'oc-temp/');
+                    
+                    if($res != 1) {
+                        $message = __('Unzip failed');
+                        $error = 3; // Unzip failed
+                        $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
+                        break;
+                    }
+                    
+                    // Can copy files
+                    $fail = -1;
+                    $handle = opendir(ABS_PATH . 'oc-temp');
+                    if (!$handle) {
+                        $message = __('Nothing to copy');
+                        $error = 99; // Nothing to copy. THIS SHOULD NEVER HAPPENS, means we dont update any file!
+                        $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
+                        break;
+                    }
+                    
+                    // Copy files
+                    $fail = 0;
+                    while (false !== ($_file = readdir($handle))) {
+                        if ($_file != '.' && $_file != '..' && $_file != 'remove.list' && $_file != 'upgrade.sql' && $_file != 'customs.actions') {
+                            $data = osc_copy(ABS_PATH . "oc-temp/" . $_file, ABS_PATH . $_file);
+                            if ($data == false) {
+                                $fail = 1;
+                            };
                         }
                     }
-
-                    if ($error == 5) {
-                        $message .= "<br /><br />" . __('We had some errors upgrading your database. The follwing queries failed') . implode("<br />", $sql_error_msg);
+                    closedir($handle);
+                    
+                    if ($fail != 0) { // Everything is OK, continue
+                        $message = __('Problems copying files. Maybe permissions are not correct');
+                        $error = 4; // Problems copying files. Maybe permissions are not correct
+                        $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
+                        break;
                     }
-                    echo $message;
-
-                    foreach ($perms as $k => $v) {
-                        @chmod($k, $v);
+                    
+                    // remove files
+                    if (file_exists(ABS_PATH . 'oc-temp/remove.list')) {
+                        $lines = file(ABS_PATH . 'oc-temp/remove.list', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                        foreach ($lines as $line_num => $r_file) {
+                            $unlink = @unlink(ABS_PATH . $r_file);
+                            if (!$unlink) {
+                                $remove_error_msg .= sprintf(__('Error removing file: %s'), $r_file) . "<br/>";
+                            }
+                        }
                     }
+                    
+                    // Removing files is not important for the rest of the proccess
+                    // We will inform the user of the problems but the upgrade could continue
+                    
+                    // Upgrade database 
+                    $error_queries = array();
+                    if (file_exists(osc_lib_path() . 'osclass/installer/struct.sql')) {
+                        $sql = file_get_contents(osc_lib_path() . 'osclass/installer/struct.sql');
+
+                        $conn = DBConnectionClass::newInstance();
+                        $c_db = $conn->getOsclassDb() ;
+                        $comm = new DBCommandClass( $c_db ) ;
+                        $error_queries = $comm->updateDB( str_replace('/*TABLE_PREFIX*/', DB_TABLE_PREFIX, $sql) ) ;
+                    }
+                    
+                    if ($error_queries[0]) { // Everything is OK, continue
+                        /**********************************
+                         ** EXECUTING ADDITIONAL ACTIONS **
+                         **********************************/
+                        if (file_exists(osc_lib_path() . 'osclass/upgrade-funcs.php')) {
+                            // There should be no errors here
+                            define('AUTO_UPGRADE', true);
+                            require_once osc_lib_path() . 'osclass/upgrade-funcs.php';
+                        }
+                        // Additional actions is not important for the rest of the proccess
+                        // We will inform the user of the problems but the upgrade could continue
+                        /****************************
+                         ** REMOVE TEMPORARY FILES **
+                         ****************************/
+                        $path = ABS_PATH . 'oc-temp';
+                        $rm_errors = 0;
+                        $dir = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::CHILD_FIRST);
+                        for ($dir->rewind(); $dir->valid(); $dir->next()) {
+                            if ($dir->isDir()) {
+                                if ($dir->getFilename() != '.' && $dir->getFilename() != '..') {
+                                    if (!rmdir($dir->getPathname())) {
+                                        $rm_errors++;
+                                    }
+                                }
+                            } else {
+                                if (!unlink($dir->getPathname())) {
+                                    $rm_errors++;
+                                }
+                            }
+                        }
+                        if (!rmdir($path)) {
+                            $rm_errors++;
+                        }
+                        $deleted = @unlink(ABS_PATH . '.maintenance');
+                        if ($rm_errors == 0) {
+                            $message = __('Everything was OK! Your OSClass installation is updated');
+                        } else {
+                            $message = __('Almost everything was OK! Your OSClass installation is updated, but there were some errors removing temporary files. Please, remove manually the "oc-temp" folder');
+                            $error = 6; // Some errors removing files
+                        }
+                    } else {
+                        $sql_error_msg = $error_queries[2];
+                        $message = __('Problems upgrading the database');
+                        $error = 5; // Problems upgrading the database		                
+                    }
+                    
+                    $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
+
                     break;
                 default:
                     echo json_encode(array('error' => __('no action defined')));
@@ -622,6 +614,24 @@
             Session::newInstance()->_clearVariables();
         }
 
+        private function _checkAndReturn($message, $error, $remove_error_msg, $perms)
+        {
+            if ($remove_error_msg != '') {
+                if ($error == 0) {
+                    $message .= "<br /><br />" . __('We had some errors removing files, those are not super-sensitive errors, so we continued upgrading your installation. Please remove the following files (you already have OSClass upgraded, but to ensure maximun performance)');
+                }
+            }
+
+            if ($error == 5) {
+                $message .= "<br /><br />" . __('We had some errors upgrading your database. The follwing queries failed') . implode("<br />", $sql_error_msg);
+            }
+            echo $message;
+
+            foreach ($perms as $k => $v) {
+                @chmod($k, $v);
+            }
+        }
+        
         //hopefully generic...
         function doView($file) {
             osc_current_admin_theme_path($file);
