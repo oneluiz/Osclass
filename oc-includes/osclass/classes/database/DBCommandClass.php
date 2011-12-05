@@ -1112,9 +1112,12 @@
                                 $constrains[$_table] = trim($refere);
                             }
                             break;
+                        case 'fulltext':
+                            echo $field;
+                            error_log($field);
+                            break;
                         case 'primary':
                         case 'index':
-                        case 'fulltext':
                         case 'unique':
                         case 'key':
                             $indexes[] = trim($field, ", \n");
