@@ -542,6 +542,13 @@
                         }
                     }
                     
+                    $this->_checkAndReturn($message, $error, $remove_error_msg, $sql_error_msg, $perms);
+
+                    break;
+                    
+                case 'upgrade_now':
+                    $error = 0;
+                    $message = "";
                     // Removing files is not important for the rest of the proccess
                     // We will inform the user of the problems but the upgrade could continue
                     
@@ -602,8 +609,7 @@
                         $error = 5; // Problems upgrading the database		                
                     }
                     
-                    $this->_checkAndReturn($message, $error, $remove_error_msg, $perms);
-
+                    $this->_checkAndReturn($message, $error, '', $sql_error_msg, array());
                     break;
                 default:
                     echo json_encode(array('error' => __('no action defined')));
@@ -614,22 +620,33 @@
             Session::newInstance()->_clearVariables();
         }
 
-        private function _checkAndReturn($message, $error, $remove_error_msg, $perms)
+        private function _checkErrors($message, $error, $remove_error_msg, $perms) 
         {
             if ($remove_error_msg != '') {
                 if ($error == 0) {
                     $message .= "<br /><br />" . __('We had some errors removing files, those are not super-sensitive errors, so we continued upgrading your installation. Please remove the following files (you already have OSClass upgraded, but to ensure maximun performance)');
                 }
             }
-
-            if ($error == 5) {
-                $message .= "<br /><br />" . __('We had some errors upgrading your database. The follwing queries failed') . implode("<br />", $sql_error_msg);
-            }
-            echo $message;
-
+            
             foreach ($perms as $k => $v) {
                 @chmod($k, $v);
             }
+            
+            // no errors redirect upgrade_now
+            if($error == 0) {
+                // otra peticion ajax, cargar action upgrade_now
+            } else {
+                echo $message;
+            }
+            
+        }
+        private function _checkAndReturn($message, $error, $remove_error_msg, $sql_error_msg, $perms)
+        {
+
+            if ($error == 5) {
+                $message .= "<br /><br />" . __('We had some errors upgrading your database. The follwing queries failed') .' '. implode("<br />", $sql_error_msg);
+            }
+            
         }
         
         //hopefully generic...
