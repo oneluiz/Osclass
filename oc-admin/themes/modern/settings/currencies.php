@@ -55,7 +55,7 @@
                 } );
 
                 oTable = $('#datatables_list').dataTable({
-                    "sDom": "<'row-action'<'row'<'span6 length-menu'l><'span6 filter'>fr>>t<'row'<'span6 info-results'i><'span6 paginate'p>>",
+                    "sDom": "",
                     "sPaginationType": "bootstrap",
                     "bInfo": false,
                     "bFilter": false,
@@ -90,7 +90,7 @@
         <div id="content">
             <?php osc_current_admin_theme_path( 'include/backoffice_menu.php' ) ; ?>
             <!-- right container -->
-		    <div class="right">
+            <div class="right">
                 <div class="header_title">
                     <h1 class="currencies"><?php _e('Currencies') ; ?></h1>
                 </div>
@@ -100,6 +100,7 @@
                     <input type="hidden" name="page" value="settings" />
                     <input type="hidden" name="action" value="currencies" />
                     <input type="hidden" name="type" value="delete" />
+                    <div class="row-action">
                     <div class="row">
                         <div class="span6">
                             <div id="example_length" class="dataTables_length">
@@ -116,6 +117,7 @@
                                 <a href="<?php echo osc_admin_base_url(true); ?>?page=settings&amp;action=currencies&amp;type=add" class="btn" id="button_open"><?php _e('Add') ; ?></a>
                             </div>
                         </div>
+                    </div>
                     </div>
                     <table cellpadding="0" cellspacing="0" border="0" class="table table-striped table-bordered" id="datatables_list"></table>
                 </form>
