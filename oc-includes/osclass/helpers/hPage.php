@@ -40,17 +40,17 @@
         } else {
             $page = null ;
         }
-        
+
         if ( !View::newInstance()->_exists('page_meta') ) {
-            View::newInstance()->_exportVariableToView('page_meta', json_decode($page['s_meta'], true));
+            View::newInstance()->_exportVariableToView('page_meta', json_decode(@$page['s_meta'], true));
         }
 
         return($page) ;
     }
-    
+
     /**
      * Gets current page field
-     * 
+     *
      * @param string $field
      * @param string $locale
      * @return string
@@ -180,7 +180,7 @@
         }
         return $path ;
     }
-    
+
     /**
      * Gets the specified static page by internal name.
      *
@@ -193,8 +193,8 @@
         $page = Page::newInstance()->findByInternalName($internal_name, $locale);
         View::newInstance()->_exportVariableToView('page_meta', json_decode($page['s_meta'], true));
         return View::newInstance()->_exportVariableToView('page', $page);
-    }    
-    
+    }
+
     /**
      * Gets the total of static pages. If static pages are not loaded, this function will load them.
      *
@@ -217,7 +217,7 @@
         if ( !View::newInstance()->_exists('pages') ) {
             View::newInstance()->_exportVariableToView('pages', Page::newInstance()->listAll(false) ) ;
         }
-        
+
         $page = View::newInstance()->_next('pages');
         View::newInstance()->_exportVariableToView('page_meta', json_decode($page['s_meta'], true));
         return $page;
