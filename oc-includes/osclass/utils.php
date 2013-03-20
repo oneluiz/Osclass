@@ -583,13 +583,21 @@ function osc_dbdump($path, $file) {
         $tables[$tableName] = $tableName;
     }
 
-    $tables_order = array('t_locale', 't_country', 't_currency', 't_region', 't_city', 't_city_area', 't_widget', 't_admin', 't_user', 't_user_description', 't_category', 't_category_description', 't_category_stats', 't_item', 't_item_description', 't_item_location', 't_item_stats', 't_item_resource', 't_item_comment', 't_preference', 't_user_preferences', 't_pages', 't_pages_description', 't_plugin_category', 't_cron', 't_alerts', 't_keywords', 't_meta_fields', 't_meta_categories', 't_item_meta');
+    $tables_order = array('t_locale', 't_country', 't_currency', 't_region', 't_city', 't_city_area', 't_widget', 't_admin', 't_user', 't_user_description', 't_category', 't_category_description', 't_category_stats', 't_item', 't_item_description', 't_item_location', 't_item_stats', 't_item_resource', 't_item_comment', 't_preference', 't_pages', 't_pages_description', 't_plugin_category', 't_cron', 't_alerts', 't_keywords', 't_meta_fields', 't_meta_categories', 't_item_meta');
     // Backup default Osclass tables in order, so no problem when importing them back
     foreach($tables_order as $table) {
-        if(array_key_exists(DB_TABLE_PREFIX . $table, $tables)) {
-            $dump->table_structure($path, DB_TABLE_PREFIX . $table);
-            $dump->table_data($path, DB_TABLE_PREFIX . $table);
-            unset($tables[DB_TABLE_PREFIX . $table]);
+        if($table=='t_user') {
+            $table = OSC_USER_TABLE;
+        } else if($table=='t_user_description') {
+            $table = OSC_USER_DESCRIPTION_TABLE;
+        } else if($table=='t_user_tmp') {
+            $table = OSC_USER_TMP_TABLE;
+        }
+        $table = DB_TABLE_PREFIX . $table;
+        if(array_key_exists($table, $tables)) {
+            $dump->table_structure($path,$table);
+            $dump->table_data($path, $table);
+            unset($tables[$table]);
         }
     }
 

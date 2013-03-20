@@ -62,7 +62,7 @@
                 $this->conn->select('DATE(dt_reg_date) as d_date, COUNT(pk_i_id) as num');
                 $this->conn->groupBy('DAY(dt_reg_date)');
             }
-            $this->conn->from(DB_TABLE_PREFIX.'t_user');
+            $this->conn->from(OSC_USER_TABLE);
             $this->conn->where("dt_reg_date > '$from_date'");
             $this->conn->orderBy('dt_reg_date', 'DESC');
             
@@ -73,7 +73,7 @@
         public function users_by_country()
         {  
             $this->conn->select('s_country, COUNT(pk_i_id) as num');
-            $this->conn->from(DB_TABLE_PREFIX.'t_user');
+            $this->conn->from(OSC_USER_TABLE);
             $this->conn->groupBy('s_country');
             
             $result = $this->conn->get();
@@ -83,7 +83,7 @@
         public function users_by_region() 
         { 
             $this->conn->select('s_region, COUNT(pk_i_id) as num');
-            $this->conn->from(DB_TABLE_PREFIX.'t_user');
+            $this->conn->from(OSC_USER_TABLE);
             $this->conn->groupBy('s_region');
             
             $result = $this->conn->get();
@@ -99,7 +99,7 @@
         public function latest_users() 
         {
             $this->conn->select();
-            $this->conn->from(DB_TABLE_PREFIX.'t_user');
+            $this->conn->from(OSC_USER_TABLE);
             $this->conn->orderBy('dt_reg_date', 'DESC');
             $this->conn->limit('5');
             

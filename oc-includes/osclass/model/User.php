@@ -45,7 +45,8 @@
         function __construct()
         {
             parent::__construct();
-            $this->setTableName('t_user');
+            $this->setTableName(OSC_USER_TABLE);
+            $this->setDescriptionTableName(OSC_USER_DESCRIPTION_TABLE);
             $this->setPrimaryKey('pk_i_id');
             $array_fields = array(
                 'pk_i_id',
@@ -83,6 +84,18 @@
                 's_access_ip'
             );
             $this->setFields($array_fields);
+        }
+
+        function setTableName($tableName) {
+            $this->tableName = $tableName;
+        }
+
+        function setDescriptionTableName($descriptionTableName) {
+            $this->descriptionTableName = $descriptionTableName;
+        }
+
+        function getDescriptionTableName() {
+            return $this->descriptionTableName;
         }
 
         /**
@@ -283,7 +296,7 @@
          */
         private function extendData($user, $locale = null) {
             $this->dao->select();
-            $this->dao->from(DB_TABLE_PREFIX.'t_user_description');
+            $this->dao->from(OSC_USER_DESCRIPTION_TABLE);
             $this->dao->where('fk_i_user_id', $user['pk_i_id']);
             if(!is_null($locale)) {
                 $this->dao->where('fk_c_locale_code', $locale);
@@ -325,8 +338,8 @@
 
                 ItemComment::newInstance()->delete(array('fk_i_user_id' => $id));
 
-                $this->dao->delete(DB_TABLE_PREFIX.'t_user_email_tmp', array('fk_i_user_id' => $id));
-                $this->dao->delete(DB_TABLE_PREFIX.'t_user_description', array('fk_i_user_id' => $id));
+                $this->dao->delete(OSC_USER_TMP_TABLE, array('fk_i_user_id' => $id));
+                $this->dao->delete(OSC_USER_DESCRIPTION_TABLE, array('fk_i_user_id' => $id));
                 $this->dao->delete(DB_TABLE_PREFIX.'t_alerts', array('fk_i_user_id' => $id));
                 return $this->dao->delete($this->getTableName(), array('pk_i_id' => $id));
             }
@@ -351,7 +364,7 @@
                 's_info'            => $info
             );
 
-            return $this->dao->insert(DB_TABLE_PREFIX.'t_user_description', $array_set);
+            return $this->dao->insert(OSC_USER_DESCRIPTION_TABLE, $array_set);
         }
 
         /**
@@ -378,7 +391,7 @@
                 'fk_c_locale_code'  => $locale,
                 'fk_i_user_id'      => $id
             );
-            return $this->dao->update(DB_TABLE_PREFIX.'t_user_description', array('s_info'    => $info), $array_where);
+            return $this->dao->update(OSC_USER_DESCRIPTION_TABLE, array('s_info'    => $info), $array_where);
         }
 
         /**
@@ -392,7 +405,7 @@
         private function existDescription($conditions)
         {
             $this->dao->select();
-            $this->dao->from(DB_TABLE_PREFIX.'t_user_description');
+            $this->dao->from(OSC_USER_DESCRIPTION_TABLE);
             $this->dao->where($conditions);
 
             $result = $this->dao->get();
@@ -542,7 +555,7 @@
         public function countUsers($condition = 'b_enabled = 1 AND b_active = 1')
         {
             $this->dao->select("COUNT(*) as i_total");
-            $this->dao->from(DB_TABLE_PREFIX.'t_user');
+            $this->dao->from($this->getTableName());
             $this->dao->where($condition);
 
             $result = $this->dao->get();
@@ -567,7 +580,7 @@
         function lastAccess($userId, $date, $ip, $time = NULL) {
             if($time!=null) {
                 $this->dao->select("dt_access_date, s_access_ip");
-                $this->dao->from(DB_TABLE_PREFIX.'t_user');
+                $this->dao->from($this->getTableName());
                 $this->dao->where('pk_i_id', $userId);
                 $this->dao->where("dt_access_date <= '" . (date('Y-m-d H:i:s', time()-$time))."'");
                 $result = $this->dao->get();

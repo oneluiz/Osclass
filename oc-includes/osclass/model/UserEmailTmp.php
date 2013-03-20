@@ -45,7 +45,7 @@
         function __construct()
         {
             parent::__construct();
-            $this->setTableName('t_user_email_tmp');
+            $this->setTableName(OSC_USER_TMP_TABLE);
             $this->setPrimaryKey('fk_i_user_id');
             $this->setFields( array('fk_i_user_id','s_new_email','dt_date') );
         }

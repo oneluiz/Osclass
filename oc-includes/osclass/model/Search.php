@@ -303,8 +303,8 @@
             if($table == '') {
                 $this->order_column = $o_c;
             } else if($table != ''){
-                if( $table == '%st_user' ) {
-                    $this->order_column = sprintf("ISNULL($table.$o_c), $table.$o_c", DB_TABLE_PREFIX, DB_TABLE_PREFIX);
+                if( $table == '%st_user' || $table == OSC_USER_TABLE ) {
+                    $this->order_column = "ISNULL(".OSC_USER_TABLE.$o_c."), ".OSC_USER_TABLE.$o_c;
                 } else {
                     $this->order_column = sprintf("$table.$o_c", DB_TABLE_PREFIX);
                 }
@@ -613,8 +613,8 @@
 
         private function _fromUser()
         {
-            $this->dao->from(sprintf('%st_user',DB_TABLE_PREFIX));
-            $this->dao->where(sprintf('%st_user.pk_i_id = %st_item.fk_i_user_id',DB_TABLE_PREFIX,DB_TABLE_PREFIX));
+            $this->dao->from(OSC_USER_TABLE);
+            $this->dao->where(sprintf('%s.pk_i_id = %st_item.fk_i_user_id', DB_USER_TABLE, DB_TABLE_PREFIX));
 
             if(is_array($this->user_ids)) {
                 $this->dao->where(" ( ".implode(" || ", $this->user_ids)." ) ");

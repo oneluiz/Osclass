@@ -79,4 +79,17 @@
     if( !defined('CLI') ) {
         define('CLI', false);
     }
+
+    if( !defined('OSC_USER_TABLE') ) {
+        define('OSC_USER_TABLE', DB_TABLE_PREFIX.'t_user');
+    }
+
+    if( !defined('OSC_USER_DESCRIPTION_TABLE') ) {
+        define('OSC_USER_DESCRIPTION_TABLE', DB_TABLE_PREFIX.'t_user_description');
+    }
+
+    if( !defined('OSC_USER_TMP_TABLE') ) {
+        define('OSC_USER_TMP_TABLE', DB_TABLE_PREFIX.'t_user_email_tmp');
+    }
+
 ?>
