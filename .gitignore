@@ -22,8 +22,6 @@ oc-content/uploads/*
 # themes
 oc-content/themes/*
 !oc-content/themes/modern/
-!oc-content/themes/bender/
-oc-content/themes/bender/.sass-cache*
 
 # plugins
 oc-content/plugins/*
@@ -39,6 +37,7 @@ oc-content/plugins/*
 .htaccess
 dist
 nbproject/
+.sass-cache
 
 # npm
 node_modules

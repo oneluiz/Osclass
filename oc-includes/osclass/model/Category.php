@@ -442,15 +442,27 @@
          *
          * @access public
          * @since unknown
-         * @param integer$cat_id
+         * @param integer $categoryID
          * @return array
          */
         public function findSubcategories($categoryID)
         {
-            // juanramon: specific condition
             $this->dao->where( 'fk_i_parent_id', $categoryID );
-            // end specific condition
+            return $this->listWhere();
+        }
 
+        /**
+         * returns the children of a given category
+         *
+         * @access public
+         * @since unknown
+         * @param integer $categoryID
+         * @return array
+         */
+        public function findSubcategoriesEnabled($categoryID)
+        {
+            $this->dao->where( 'fk_i_parent_id', $categoryID );
+            $this->dao->where( 'a.b_enabled', '1' );
             return $this->listWhere();
         }
 
@@ -537,8 +549,8 @@
                 $category = $this->categories[$categoryID];
             } else {
                 $this->dao->select( "s_name" );
-                $this->dao->from( $this->getTableName() );
-                $this->dao->where( 'pk_i_id', $categoryID );
+                $this->dao->from( $this->getTablePrefix() . 't_category_description' );
+                $this->dao->where( 'fk_i_category_id', $categoryID );
                 $result = $this->dao->get();
 
                 if( $result == false ) {
@@ -549,6 +561,32 @@
             }
 
             return $category['s_name'];
+        }
+
+        /**
+         * Return list of categories' name and id by locale
+         *
+         * @access public
+         * @since 3.2.1
+         * @param string $locale
+         * @return array
+         */
+        public function _findNameIDByLocale($locale = null)
+        {
+            if($locale == null) {
+                return false;
+            }
+
+            $this->dao->select( "s_name, fk_i_category_id as pk_i_id" );
+            $this->dao->from( $this->getTablePrefix() . 't_category_description' );
+            $this->dao->where( 'fk_c_locale_code', $locale );
+            $result = $this->dao->get();
+
+            if( $result == false ) {
+                return array();
+            }
+
+            return $result->result();
         }
 
         /**
