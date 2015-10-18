@@ -1,24 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     class CAdminLogin extends AdminBaseModel
     {
@@ -36,6 +32,7 @@
                                         osc_run_hook('before_login_admin');
                                         $url_redirect  = osc_get_http_referer();
                                         $page_redirect = '';
+                                        $password = Params::getParam('password', false, false);
                                         if(preg_match('|[\?&]page=([^&]+)|', $url_redirect.'&', $match)) {
                                             $page_redirect = $match[1];
                                         }
@@ -61,9 +58,23 @@
                                             $this->redirectTo( osc_admin_base_url(true)."?page=login" );
                                         }
 
-                                        if(!osc_verify_password(Params::getParam('password', false, false), $admin['s_password'])) {
+                                        if(!osc_verify_password($password, $admin['s_password'])) {
                                             osc_add_flash_error_message( sprintf(_m('Sorry, incorrect password. <a href="%s">Have you lost your password?</a>'), osc_admin_base_url(true) . '?page=login&amp;action=recover' ), 'admin');
                                             $this->redirectTo( osc_admin_base_url(true)."?page=login" );
+										} else {
+                                            if (@$admin['s_password']!='') {
+                                                if (preg_match('|\$2y\$([0-9]{2})\$|', $admin['s_password'], $cost)) {
+                                                    if ($cost[1] != BCRYPT_COST) {
+                                                        Admin::newInstance()->update(
+                                                        array( 's_password' => osc_hash_password($password))
+                                                       ,array( 'pk_i_id' => $admin['pk_i_id'] ) );
+                                                    }
+                                                } else {
+                                                    Admin::newInstance()->update(
+                                                        array( 's_password' => osc_hash_password($password))
+                                                       ,array( 'pk_i_id' => $admin['pk_i_id'] ) );
+                                                }
+                                            }
                                         }
 
                                         if( Params::getParam('remember') ) {
@@ -160,7 +171,7 @@
                                         }
                 break;
                 default:
-                                        osc_run_hook( 'init_admin' );
+                                        //osc_run_hook( 'init_admin' );
                                         Session::newInstance()->_setReferer(osc_get_http_referer());
                                         $this->doView( 'gui/login.php' );
                 break;

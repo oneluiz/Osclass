@@ -1,24 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     class Rewrite
     {
@@ -109,18 +105,17 @@
 
         public function init()
         {
-            // $_SERVER is not supported by Params Class... we should fix that
-            if(isset($_SERVER['REQUEST_URI'])) {
-                if(preg_match('|[\?&]{1}http_referer=(.*)$|', urldecode($_SERVER['REQUEST_URI']), $ref_match)) {
+            if(Params::existServerParam('REQUEST_URI')) {
+                if(preg_match('|[\?&]{1}http_referer=(.*)$|', urldecode(Params::getServerParam('REQUEST_URI', false, false)), $ref_match)) {
                     $this->http_referer = $ref_match[1];
-                    $_SERVER['REQUEST_URI'] = preg_replace('|[\?&]{1}http_referer=(.*)$|', "", urldecode($_SERVER['REQUEST_URI']));
+                    $_SERVER['REQUEST_URI'] = preg_replace('|[\?&]{1}http_referer=(.*)$|', "", urldecode(Params::getServerParam('REQUEST_URI', false, false)));
                 }
-                $request_uri = preg_replace('@^' . REL_WEB_URL . '@', "", urldecode($_SERVER['REQUEST_URI']));
+                $request_uri = preg_replace('@^' . REL_WEB_URL . '@', "", urldecode(Params::getServerParam('REQUEST_URI', false, false)));
                 $this->raw_request_uri = $request_uri;
                 $route_used = false;
                 foreach($this->routes as $id => $route) {
                     // UNCOMMENT TO DEBUG
-                    //echo 'Request URI: '.$request_uri." # Match : ".$match." # URI to go : ".$uri." <br />";
+                    //echo 'Request URI: '.$request_uri." # Match : ".$route['regexp']." # URI to go : ".$route['url']." <br />";
                     if(preg_match('#^'.$route['regexp'].'#', $request_uri, $m)) {
                         if(!preg_match_all('#\{([^\}]+)\}#', $route['url'], $args)) {
                             $args[1] = array();
@@ -133,6 +128,7 @@
                                 Params::setParam('route_param_'.$p, $m[$p]);
                             }
                         }
+
                         Params::setParam('page', 'custom');
                         Params::setParam('route', $id);
                         $route_used = true;
@@ -146,9 +142,21 @@
                     if(osc_rewrite_enabled()) {
                         $tmp_ar = explode("?", $request_uri);
                         $request_uri = $tmp_ar[0];
+
+                        // if try to access directly to a php file
+                        if(preg_match('#^(.+?)\.php(.*)$#', $request_uri)) {
+                            $file = explode("?", $request_uri);
+                            if(!file_exists(ABS_PATH . $file[0])) {
+                                Rewrite::newInstance()->set_location('error');
+                                header('HTTP/1.1 404 Not Found');
+                                osc_current_web_theme_path('404.php');
+                                exit;
+                            }
+                        }
+
                         foreach($this->rules as $match => $uri) {
                             // UNCOMMENT TO DEBUG
-                            //echo 'Request URI: '.$request_uri." # Match : ".$match." # URI to go : ".$uri." <br />";
+                            // echo 'Request URI: '.$request_uri." # Match : ".$match." # URI to go : ".$uri." <br />";
                             if(preg_match('#^'.$match.'#', $request_uri, $m)) {
                                 $request_uri = preg_replace('#'.$match.'#', $uri, $request_uri);
                                 break;
@@ -223,17 +231,17 @@
         {
             return $this->section;
         }
-        
+
         public function get_title()
         {
             return $this->title;
         }
-        
+
         public function get_http_referer()
         {
             return $this->http_referer;
         }
-        
+
     }
 
 ?>

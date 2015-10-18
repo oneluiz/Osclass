@@ -1,24 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     class AdminSecBaseModel extends SecBaseModel
     {
@@ -35,20 +31,6 @@
             }
 
             osc_run_hook( 'init_admin' );
-
-            // check if exist a new version each day
-            if( (time() - osc_last_version_check()) > (24 * 3600) ) {
-                $data = osc_file_get_contents('http://osclass.org/latest_version.php?callback=?');
-                $data = preg_replace('|^\?\((.*?)\);$|', '$01', $data);
-                $json = json_decode($data);
-                if( $json->version > osc_version() ) {
-                    osc_set_preference( 'update_core_json', $data );
-                } else {
-                    osc_set_preference( 'update_core_json', '' );
-                }
-                osc_set_preference( 'last_version_check', time() );
-                osc_reset_preferences();
-            }
 
             $config_version = str_replace('.', '', OSCLASS_VERSION);
             $config_version = preg_replace('|-.*|', '', $config_version);
@@ -86,11 +68,15 @@
         function logout()
         {
             //destroying session
+            $locale = Session::newInstance()->_get('oc_adminLocale');
+            Session::newInstance()->session_destroy();
             Session::newInstance()->_drop('adminId');
             Session::newInstance()->_drop('adminUserName');
             Session::newInstance()->_drop('adminName');
             Session::newInstance()->_drop('adminEmail');
             Session::newInstance()->_drop('adminLocale');
+            Session::newInstance()->session_start();
+            Session::newInstance()->_set('oc_adminLocale', $locale);
 
             Cookie::newInstance()->pop('oc_adminId');
             Cookie::newInstance()->pop('oc_adminSecret');
@@ -102,9 +88,10 @@
         {
             if(Params::getParam('page')=='ajax') {
                 echo json_encode(array('error' => 1, 'msg' => __('Session timed out')));
+                exit;
             } else {
                 //Session::newInstance()->session_start();
-                Session::newInstance()->_setReferer(osc_base_url() . preg_replace('|^' . REL_WEB_URL . '|', '', $_SERVER['REQUEST_URI']));
+                Session::newInstance()->_setReferer(osc_base_url() . preg_replace('|^' . REL_WEB_URL . '|', '', Params::getServerParam('REQUEST_URI', false, false)));
                 header("Location: " . osc_admin_base_url(true)."?page=login" );
                 exit;
             }

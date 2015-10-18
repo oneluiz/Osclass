@@ -1,23 +1,19 @@
 <?php
 
 /*
- *      Osclass – software for creating and publishing online classified
- *                           advertising platforms
+ * Copyright 2014 Osclass
  *
- *                        Copyright (C) 2012 OSCLASS
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       This program is free software: you can redistribute it and/or
- *     modify it under the terms of the GNU Affero General Public License
- *     as published by the Free Software Foundation, either version 3 of
- *            the License, or (at your option) any later version.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *     This program is distributed in the hope that it will be useful, but
- *         WITHOUT ANY WARRANTY; without even the implied warranty of
- *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *             GNU Affero General Public License for more details.
- *
- *      You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 
@@ -78,7 +74,7 @@ function osc_deleteResource( $id , $admin) {
  * @return true on success.
  */
 function osc_deleteDir($path) {
-    if(strpos($path, "../")!==false) {
+    if(strpos($path, "../")!==false || strpos($path, "..\\")!==false) {
         return false;
     }
 
@@ -94,6 +90,7 @@ function osc_deleteDir($path) {
     while ($file = @readdir($fd)) {
         if ($file != '.' && $file != '..') {
             if (!is_dir($path . '/' . $file)) {
+                @chmod($path."/".$file, 0777);
                 if (!@unlink($path . '/' . $file)) {
                     closedir($fd);
                     return false;
@@ -116,7 +113,7 @@ function osc_deleteDir($path) {
  * @return true on success.
  */
 function osc_packageExtract($zipPath, $path) {
-    if(strpos($path, "../")!==false) {
+    if(strpos($path, "../")!==false || strpos($path, "..\\")!==false) {
         return false;
     }
 
@@ -238,13 +235,17 @@ function is_serialized($data) {
 /**
  * VERY BASIC
  * Perform a POST request, so we could launch fake-cron calls and other core-system calls without annoying the user
+ * @return bool false on error or number of bytes sent.
  */
 function osc_doRequest($url, $_data) {
     if (function_exists('fsockopen')) {
-        $data = http_build_query($_data);
 
         // parse the given URL
         $url = parse_url($url);
+
+        if ($url === false || !isset($url['host']) || !isset($url['path'])) {
+            return false;
+        }
 
         // extract host and path:
         $host = $url['host'];
@@ -253,18 +254,21 @@ function osc_doRequest($url, $_data) {
         // open a socket connection on port 80
         // use localhost in case of issues with NATs (hairpinning)
         $fp = @fsockopen($host, 80);
+        
+        if($fp===false) { return false; };
 
-        if($fp!==false) {
-            $out  = "POST $path HTTP/1.1\r\n";
-            $out .= "Host: $host\r\n";
-            $out .= "Referer: Osclass (v.". osc_version() .")\r\n";
-            $out .= "Content-type: application/x-www-form-urlencoded\r\n";
-            $out .= "Content-Length: ".strlen($data)."\r\n";
-            $out .= "Connection: Close\r\n\r\n";
-            $out .= "$data";
-            fwrite($fp, $out);
-            fclose($fp);
-        }
+        $data = http_build_query($_data);
+        $out  = "POST $path HTTP/1.1\r\n";
+        $out .= "Host: $host\r\n";
+        $out .= "Referer: Osclass (v.". osc_version() .")\r\n";
+        $out .= "Content-type: application/x-www-form-urlencoded\r\n";
+        $out .= "Content-Length: ".strlen($data)."\r\n";
+        $out .= "Connection: Close\r\n\r\n";
+        $out .= "$data";
+        $number_bytes_sent = fwrite($fp, $out);
+        fclose($fp);
+
+        return $number_bytes_sent; // or false on fwrite() error
     }
 }
 
@@ -283,7 +287,7 @@ function osc_sendMail($params) {
     $mail->ClearCustomHeaders();
     $mail->ClearReplyTos();
 
-    $mail = osc_apply_filter('init_send_mail', $mail);
+    $mail = osc_apply_filter('init_send_mail', $mail, $params);
 
     if( osc_mailserver_pop() ) {
         require_once osc_lib_path() . 'phpmailer/class.pop3.php';
@@ -375,8 +379,8 @@ function osc_sendMail($params) {
         }
     }
 
-    $mail->From     = osc_apply_filter('mail_from', $from);
-    $mail->FromName = osc_apply_filter('mail_from_name', $from_name);
+    $mail->From     = osc_apply_filter('mail_from', $from, $params);
+    $mail->FromName = osc_apply_filter('mail_from_name', $from_name, $params);
 
     $to      = $params['to'];
     $to_name = '';
@@ -422,13 +426,19 @@ function osc_sendMail($params) {
     $mail->Body    = $params['body'];
 
     if( array_key_exists('attachment', $params) ) {
-        if( !is_array($params['attachment']) ) {
+        if( !is_array($params['attachment']) || isset($params['attachment']['path'])) {
             $params['attachment'] = array( $params['attachment'] );
         }
 
         foreach($params['attachment'] as $attachment) {
             try {
-                $mail->AddAttachment($attachment);
+                if(is_array($attachment)) {
+                    if(isset($attachment['path']) && isset($attachment['name'])) {
+                        $mail->AddAttachment($attachment['path'], $attachment['name']);
+                    }
+                } else {
+                    $mail->AddAttachment($attachment);
+                }
             } catch (phpmailerException $e) {
                 continue;
             }
@@ -438,7 +448,7 @@ function osc_sendMail($params) {
     $mail->CharSet = 'utf-8';
     $mail->IsHTML(true);
 
-    $mail = osc_apply_filter('pre_send_mail', $mail);
+    $mail = osc_apply_filter('pre_send_mail', $mail, $params);
 
     // send email!
     try {
@@ -465,22 +475,34 @@ function osc_mailBeauty($text, $params) {
         osc_base_url(),
         osc_page_title(),
         '<a href="' . osc_base_url() . '">' . osc_page_title() . '</a>',
-        date('Y-m-d H:i:s'),
-        date('H:i'),
-        $_SERVER['REMOTE_ADDR']
+		date(osc_date_format()?osc_date_format():'Y-m-d').' '.date(osc_time_format()?osc_time_format():'H:i:s'),
+		date(osc_time_format()?osc_time_format():'H:i'),
+        Params::getServerParam('REMOTE_ADDR')
     );
     $text = str_ireplace($kwords, $rwords, $text);
 
     return $text;
 }
 
+function osc_mkdir($dir, $mode=0777, $recursive=true) {
+    if (is_null($dir) || $dir==="") {
+        return false;
+    }
+    if (is_dir($dir) || $dir==="/") {
+        return true;
+    }
+    if (osc_mkdir(dirname($dir), $mode, $recursive)) {
+        return mkdir($dir, $mode);
+    }
+    return false;
+}
 
 function osc_copy($source, $dest, $options=array('folderPermission'=>0755,'filePermission'=>0755)) {
     $result =true;
     if (is_file($source)) {
         if ($dest[strlen($dest)-1]=='/') {
             if (!file_exists($dest)) {
-                cmfcDirectory::makeAll($dest,$options['folderPermission'],true);
+                osc_mkdir($dest, $options['folderPermission'], true);
             }
             $__dest=$dest."/".basename($source);
         } else {
@@ -587,9 +609,7 @@ function osc_dbdump($path, $file) {
         return -3;
     }
 
-    $_str = '';
-    $_str .= '/* OSCLASS MYSQL Autobackup (' . date('Y-m-d H:i:s') . ') */';
-    $_str .= "\n";
+    $_str = '/* OSCLASS MYSQL Autobackup (' . date(osc_date_format()?osc_date_format():'Y-m-d').' '.date(osc_time_format()?osc_time_format():'H:i:s') . ') */'."\n";
 
     $f = fopen($path, "a");
     fwrite($f, $_str);
@@ -742,7 +762,7 @@ function processHeaders($headers)
  * @param type $sourceFile
  * @param type $fileout
  */
-function download_fsockopen($sourceFile, $fileout = null)
+function download_fsockopen($sourceFile, $fileout = null, $post_data = null)
 {
     // parse URL
     $aUrl = parse_url($sourceFile);
@@ -759,12 +779,15 @@ function download_fsockopen($sourceFile, $fileout = null)
     if (!$fp) {
         return false;
     } else {
-        $ua  = $_SERVER['HTTP_USER_AGENT'] . ' Osclass (v.' . osc_version() . ')';
-        $out = "GET $link HTTP/1.1\r\n";
+        $ua  = Params::getServerParam('HTTP_USER_AGENT') . ' Osclass (v.' . osc_version() . ')';
+        $out = ($post_data!=null && is_array($post_data)?"POST":"GET") . " $link HTTP/1.1\r\n";
         $out .= "Host: $host\r\n";
         $out .= "User-Agent: $ua\r\n";
         $out .= "Connection: Close\r\n\r\n";
         $out .= "\r\n";
+        if($post_data!=null && is_array($post_data)) {
+            $out .= http_build_query($post_data);
+        }
         fwrite($fp, $out);
 
         $contents = '';
@@ -815,9 +838,9 @@ function download_fsockopen($sourceFile, $fileout = null)
     }
 }
 
-function osc_downloadFile($sourceFile, $downloadedFile)
+function osc_downloadFile($sourceFile, $downloadedFile, $post_data = null)
 {
-    if(strpos($downloadedFile, "../")!==false) {
+    if(strpos($downloadedFile, "../")!==false || strpos($downloadedFile, "..\\")!==false) {
         return false;
     }
 
@@ -827,10 +850,20 @@ function osc_downloadFile($sourceFile, $downloadedFile)
         if($fp) {
             $ch = curl_init($sourceFile);
             @curl_setopt($ch, CURLOPT_TIMEOUT, 50);
-            curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] . ' Osclass (v.' . osc_version() . ')');
+            curl_setopt($ch, CURLOPT_USERAGENT, Params::getServerParam('HTTP_USER_AGENT') . ' Osclass (v.' . osc_version() . ')');
             curl_setopt($ch, CURLOPT_FILE, $fp);
             @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_REFERER, osc_base_url());
+
+            if(stripos($sourceFile, 'https')!==false) {
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+            }
+            if($post_data!=null) {
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data));
+            }
+
             curl_exec($ch);
             curl_close($ch);
             fclose($fp);
@@ -846,20 +879,31 @@ function osc_downloadFile($sourceFile, $downloadedFile)
     return false;
 }
 
-function osc_file_get_contents($url)
+function osc_file_get_contents($url, $post_data = null)
 {
+    $data = null;
     if( testCurl() ) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT'] . ' Osclass (v.' . osc_version() . ')');
+        curl_setopt($ch, CURLOPT_USERAGENT, Params::getServerParam('HTTP_USER_AGENT') . ' Osclass (v.' . osc_version() . ')');
         if( !defined('CURLOPT_RETURNTRANSFER') ) define('CURLOPT_RETURNTRANSFER', 1);
         @curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_REFERER, osc_base_url());
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        if(stripos($url, 'https')!==false) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        }
+
+        if($post_data!=null) {
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_data));
+        }
+
         $data = curl_exec($ch);
         curl_close($ch);
     } else if( testFsockopen() ) {
-        $data = download_fsockopen($url);
+        $data = download_fsockopen($url, null, $post_data);
     }
     return $data;
 }
@@ -922,7 +966,7 @@ function strip_slashes_extended($array) {
  *  -1 : file could not be created (or error reading the file from the zip)
  */
 function osc_unzip_file($file, $to) {
-    if(strpos($to, "../")!==false) {
+    if(strpos($to, "../")!==false || strpos($to, "..\\")!==false) {
         return 0;
     }
 
@@ -954,7 +998,7 @@ function osc_unzip_file($file, $to) {
  * @return int
  */
 function _unzip_file_ziparchive($file, $to) {
-    if(strpos($to, "../")!==false) {
+    if(strpos($to, "../")!==false || strpos($to, "..\\")!==false) {
         return 0;
     }
 
@@ -1013,7 +1057,7 @@ function _unzip_file_ziparchive($file, $to) {
  * @return int
  */
 function _unzip_file_pclzip($zip_file, $to) {
-    if(strpos($to, "../")!==false) {
+    if(strpos($to, "../")!==false || strpos($to, "..\\")!==false) {
         return false;
     }
 
@@ -1063,7 +1107,7 @@ function _unzip_file_pclzip($zip_file, $to) {
  * @return int
  */
 function osc_zip_folder($archive_folder, $archive_name) {
-    if(strpos($archive_folder, "../")!==false || strpos($archive_name,"../")!==false) {
+    if(strpos($archive_folder, "../")!==false || strpos($archive_name,"../")!==false || strpos($archive_folder, "..\\")!==false || strpos($archive_name,"..\\")!==false) {
         return false;
     }
 
@@ -1082,7 +1126,7 @@ function osc_zip_folder($archive_folder, $archive_name) {
  * @return int
  */
 function _zip_folder_ziparchive($archive_folder, $archive_name) {
-    if(strpos($archive_folder, "../")!==false || strpos($archive_name,"../")!==false) {
+    if(strpos($archive_folder, "../")!==false || strpos($archive_name,"../")!==false || strpos($archive_folder, "..\\")!==false || strpos($archive_name,"..\\")!==false) {
         return false;
     }
 
@@ -1124,7 +1168,7 @@ function _zip_folder_ziparchive($archive_folder, $archive_name) {
  * @return int
  */
 function _zip_folder_pclzip($archive_folder, $archive_name) {
-    if(strpos($archive_folder, "../")!==false || strpos($archive_name,"../")!==false) {
+    if(strpos($archive_folder, "../")!==false || strpos($archive_name,"../")!==false || strpos($archive_folder, "..\\")!==false || strpos($archive_name,"..\\")!==false) {
         return false;
     }
 
@@ -1159,7 +1203,7 @@ function osc_check_recaptcha() {
     require_once osc_lib_path() . 'recaptchalib.php';
     if ( Params::getParam("recaptcha_challenge_field") != '') {
         $resp = recaptcha_check_answer (osc_recaptcha_private_key()
-                                        ,$_SERVER["REMOTE_ADDR"]
+                                        ,Params::getServerParam("REMOTE_ADDR")
                                         ,Params::getParam("recaptcha_challenge_field")
                                         ,Params::getParam("recaptcha_response_field"));
 
@@ -1170,7 +1214,7 @@ function osc_check_recaptcha() {
 }
 
 function osc_check_dir_writable( $dir = ABS_PATH ) {
-    if(strpos($dir, "../")!==false) {
+    if(strpos($dir, "../")!==false || strpos($dir, "..\\")!==false) {
         return false;
     }
 
@@ -1180,7 +1224,7 @@ function osc_check_dir_writable( $dir = ABS_PATH ) {
             if($file!="." && $file!="..") {
                 if(is_dir(str_replace("//", "/", $dir . "/" . $file))) {
                     if(str_replace("//", "/", $dir)==(ABS_PATH . "oc-content/themes")) {
-                        if($file=="modern" || $file=="index.php") {
+                        if($file=="bender" || $file=="index.php") {
                             $res = osc_check_dir_writable( str_replace("//", "/", $dir . "/" . $file));
                             if(!$res) { return false; };
                         }
@@ -1213,7 +1257,7 @@ function osc_check_dir_writable( $dir = ABS_PATH ) {
 
 
 function osc_change_permissions( $dir = ABS_PATH ) {
-    if(strpos($dir, "../")!==false) {
+    if(strpos($dir, "../")!==false || strpos($dir, "..\\")!==false) {
         return false;
     }
 
@@ -1262,7 +1306,7 @@ function osc_change_permissions( $dir = ABS_PATH ) {
 }
 
 function osc_save_permissions( $dir = ABS_PATH ) {
-    if(strpos($dir, "../")!==false) {
+    if(strpos($dir, "../")!==false || strpos($dir, "..\\")!==false) {
         return false;
     }
 
@@ -1278,7 +1322,7 @@ function osc_save_permissions( $dir = ABS_PATH ) {
                         $perms[$k] = $v;
                     }
                 } else {
-                    $perms[str_replace("//", "/", $dir . "/" . $file)] = fileperms( str_replace("//", "/", $dir . "/" . $file));
+                    $perms[str_replace("//", "/", $dir . "/" . $file)] = @fileperms( str_replace("//", "/", $dir . "/" . $file));
                 }
             }
         }
@@ -1289,7 +1333,7 @@ function osc_save_permissions( $dir = ABS_PATH ) {
 
 
 function osc_prepare_price($price) {
-    return $price/1000000;
+    return number_format($price/1000000, osc_locale_num_dec(), osc_locale_dec_point(), osc_locale_thousands_sep());
 }
 
 /**
@@ -1608,18 +1652,18 @@ function osc_translate_categories($locale) {
 
 
 function get_ip() {
-    if( !empty($_SERVER['HTTP_CLIENT_IP']) ) {
-        return $_SERVER['HTTP_CLIENT_IP'];
+    if( Params::getServerParam('HTTP_CLIENT_IP')!='' ) {
+        return Params::getServerParam('HTTP_CLIENT_IP');
     }
 
-    if( !empty($_SERVER['HTTP_X_FORWARDED_FOR']) ) {
-        $ip_array = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+    if( Params::getServerParam('HTTP_X_FORWARDED_FOR')!='' ) {
+        $ip_array = explode(',', Params::getServerParam('HTTP_X_FORWARDED_FOR'));
         foreach($ip_array as $ip) {
             return trim($ip);
         }
     }
 
-    return $_SERVER['REMOTE_ADDR'];
+    return Params::getServerParam('REMOTE_ADDR');
 }
 
 
@@ -1769,7 +1813,7 @@ function osc_do_upgrade() {
     /***********************
      **** DOWNLOAD FILE ****
      ***********************/
-    $data = osc_file_get_contents("http://osclass.org/latest_version.php");
+    $data = osc_file_get_contents("http://osclass.org/latest_version_v1.php");
     $data = json_decode(substr($data, 1, strlen($data)-3), true);
     $source_file = $data['url'];
     if ($source_file != '') {
@@ -1783,6 +1827,7 @@ function osc_do_upgrade() {
              ***** UNZIP FILE *****
              **********************/
             $tmp_path = osc_content_path().'downloads/oc-temp/core-'.$data['version'].'/';
+            @mkdir(osc_content_path().'downloads/oc-temp/', 0777);
             @mkdir($tmp_path, 0777);
             $res = osc_unzip_file(osc_content_path().'downloads/'.$filename, $tmp_path);
             if ($res == 1) { // Everything is OK, continue
@@ -1871,18 +1916,22 @@ function osc_do_upgrade() {
                 } else {
                     $message = __('Nothing to copy');
                     $error = 99; // Nothing to copy. THIS SHOULD NEVER HAPPEN, means we don't update any file!
+                    $deleted = @unlink(ABS_PATH . '.maintenance');
                 }
             } else {
                 $message = __('Unzip failed');
                 $error = 3; // Unzip failed
+                $deleted = @unlink(ABS_PATH . '.maintenance');
             }
         } else {
             $message = __('Download failed');
             $error = 2; // Download failed
+            $deleted = @unlink(ABS_PATH . '.maintenance');
         }
     } else {
         $message = __('Missing download URL');
         $error = 1; // Missing download URL
+        $deleted = @unlink(ABS_PATH . '.maintenance');
     }
 
     if ($error == 5) {
@@ -1896,32 +1945,32 @@ function osc_do_upgrade() {
 }
 
 function osc_do_auto_upgrade() {
-    $data = osc_file_get_contents('http://osclass.org/latest_version.php?callback=?');
+    $data = osc_file_get_contents('http://osclass.org/latest_version_v1.php?callback=?');
     $data = preg_replace('|^\?\((.*?)\);$|', '$01', $data);
     $json = json_decode($data);
     $result['error'] = 0;
-    if($json->version>osc_version()) {
+    if($json->version>osc_version() && osc_check_dir_writable()) {
         osc_set_preference('update_core_json', $data);
         if(substr($json->version,0,1)!=substr(osc_version(),0,1)) {
             // NEW BRANCH
             if(strpos(osc_auto_update(), 'branch')!==false) {
-                osc_run_hook('before_auto_update');
+                osc_run_hook('before_auto_upgrade');
                 $result = osc_do_upgrade();
-                osc_run_hook('after_auto_update', $result);
+                osc_run_hook('after_auto_upgrade', $result);
             }
         } else if(substr($json->version,1,1)!=substr(osc_version(),1,1)) {
             // MAJOR RELEASE
             if(strpos(osc_auto_update(), 'branch')!==false || strpos(osc_auto_update(), 'major')!==false) {
-                osc_run_hook('before_auto_update');
+                osc_run_hook('before_auto_upgrade');
                 $result = osc_do_upgrade();
-                osc_run_hook('after_auto_update', $result);
+                osc_run_hook('after_auto_upgrade', $result);
             }
         } else if(substr($json->version,2,1)!=substr(osc_version(),2,1)) {
             // MINOR RELEASE
             if(strpos(osc_auto_update(), 'branch')!==false || strpos(osc_auto_update(), 'major')!==false || strpos(osc_auto_update(), 'minor')!==false) {
-                osc_run_hook('before_auto_update');
+                osc_run_hook('before_auto_upgrade');
                 $result = osc_do_upgrade();
-                osc_run_hook('after_auto_update', $result);
+                osc_run_hook('after_auto_upgrade', $result);
             }
         }
     } else {
@@ -1975,7 +2024,7 @@ function osc_is_update_compatible($section, $element, $osclass_version = OSCLASS
         if(stripos($element, "http://")===FALSE) {
             // OSCLASS OFFICIAL REPOSITORY
             $url = osc_market_url($section, $element);
-            $data = json_decode(osc_file_get_contents($url), true);
+            $data = json_decode(osc_file_get_contents($url, array('api_key' => osc_market_api_connect())), true);
         } else {
             // THIRD PARTY REPOSITORY
             if(osc_market_external_sources()) {
@@ -2004,6 +2053,7 @@ function osc_market($section, $code) {
     $re_enable = false;
     $message = "";
     $data = array();
+    $download_post_data = array('api_key' => osc_market_api_connect());
     /************************
      *** CHECK VALID CODE ***
      ************************/
@@ -2011,10 +2061,12 @@ function osc_market($section, $code) {
         if(stripos($code, "http://")===FALSE) {
             // OSCLASS OFFICIAL REPOSITORY
             $url = osc_market_url($section, $code);
-            $data = json_decode(osc_file_get_contents($url), true);
+            $data = osc_file_get_contents($url, array('api_key' => osc_market_api_connect()));
+            $data = json_decode(osc_file_get_contents($url, array('api_key' => osc_market_api_connect())), true);
         } else {
             // THIRD PARTY REPOSITORY
             if(osc_market_external_sources()) {
+                $download_post_data = array();
                 $data = json_decode(osc_file_get_contents($code), true);
             } else {
                 return array('error' => 9, 'message' => __('No external sources are allowed'), 'data' => $data);
@@ -2045,12 +2097,13 @@ function osc_market($section, $code) {
             $filename = date('YmdHis')."_".osc_sanitize_string($data['s_title'])."_".$data['s_version'].".zip";
             $url_source_file = $data['s_source_file'];
 
-            $result   = osc_downloadFile($url_source_file, $filename);
+            $result   = osc_downloadFile($url_source_file, $filename, $download_post_data);
 
             if ($result) { // Everything is OK, continue
                 /**********************
                  ***** UNZIP FILE *****
                  **********************/
+                @mkdir(osc_content_path() . 'downloads/oc-temp/');
                 $res = osc_unzip_file(osc_content_path() . 'downloads/' . $filename, osc_content_path() . 'downloads/oc-temp/');
                 if ($res == 1) { // Everything is OK, continue
                     /**********************
@@ -2113,6 +2166,8 @@ function osc_market($section, $code) {
                                     }
                                 }
 
+                            } else if($data['e_type']=='LANGUAGE') {
+                                osc_checkLocales();
                             }
                             // recount plugins&themes for update
                             if($section == 'plugins') {
@@ -2154,8 +2209,13 @@ function osc_market($section, $code) {
                 $error = 2; // Download failed
             }
         } else {
-            $message = __('Input code not valid');
-            $error = 7; // Input code not valid
+            if(isset($data['s_buy_url']) && isset($data['b_paid']) && $data['s_buy_url']!='' && $data['b_paid']==0) {
+                $message = __('This is a paid item, you need to buy it before you are able to download it');
+                $error = 8; // Item not paid
+            } else {
+                $message = __('Input code not valid');
+                $error = 7; // Input code not valid
+            }
         }
     } else {
         $message = __('Missing download URL');
@@ -2165,8 +2225,49 @@ function osc_market($section, $code) {
     return array('error' => $error, 'message' => $message, 'data' => $data);
 }
 
-function osc_is_ssl() {
-    return (isset($_SERVER['HTTPS']) && (strtolower($_SERVER['HTTPS'])=='on' || $_SERVER['HTTPS']=='1'));
+function osc_is_ssl()
+{
+    return ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) == 'https') || (isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on' || $_SERVER['HTTPS'] == 1)));
 }
 
-?>
+if(!function_exists('hex2b64')) {
+    /*
+     * Used to encode a field for Amazon Auth
+     * (taken from the Amazon S3 PHP example library)
+     */
+    function hex2b64($str)
+    {
+        $raw = '';
+        for ($i=0; $i < strlen($str); $i+=2)
+        {
+            $raw .= chr(hexdec(substr($str, $i, 2)));
+        }
+        return base64_encode($raw);
+    }
+}
+
+if(!function_exists('hmacsha1')) {
+    /*
+     * Calculate HMAC-SHA1 according to RFC2104
+     * See http://www.faqs.org/rfcs/rfc2104.html
+     */
+    function hmacsha1($key,$data) {
+        $blocksize=64;
+        $hashfunc='sha1';
+        if (strlen($key)>$blocksize)
+            $key=pack('H*', $hashfunc($key));
+        $key=str_pad($key,$blocksize,chr(0x00));
+        $ipad=str_repeat(chr(0x36),$blocksize);
+        $opad=str_repeat(chr(0x5c),$blocksize);
+        $hmac = pack(
+                    'H*',$hashfunc(
+                        ($key^$opad).pack(
+                            'H*',$hashfunc(
+                                ($key^$ipad).$data
+                            )
+                        )
+                    )
+                );
+        return bin2hex($hmac);
+    }
+}

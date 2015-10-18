@@ -1,24 +1,20 @@
 <?php if ( !defined('ABS_PATH') ) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     /**
      * Model database for Region table
@@ -81,7 +77,7 @@
         {
             $this->dao->select('*');
             $this->dao->from($this->getTableName());
-            $this->dao->where('fk_c_country_code', addslashes($countryId));
+            $this->dao->where('fk_c_country_code', $countryId);
             $this->dao->orderBy('s_name', 'ASC');
             $result = $this->dao->get();
 
@@ -129,15 +125,20 @@
          */
         public function ajax($query, $country = null)
         {
-            $this->dao->select('pk_i_id as id, s_name as label, s_name as value');
-            $this->dao->from($this->getTableName());
+            $country = trim($country);
+            $this->dao->select('a.pk_i_id as id, a.s_name as label, a.s_name as value');
+            $this->dao->from($this->getTableName() . ' as a');
             $this->dao->like('s_name', $query, 'after');
-            if($country != null) {
-                $this->dao->where('fk_c_country_code', strtolower($country));
+            if($country != null ) {
+                if(strlen($country)==2) {
+                    $this->dao->where('a.fk_c_country_code', strtolower($country));
+                } else {
+                    $this->dao->join(Country::newInstance()->getTableName().' as aux', 'aux.pk_c_code = a.fk_c_country_code', 'LEFT');
+                    $this->dao->where('aux.s_name', $country);
+                }
             }
             $this->dao->limit(5);
             $result = $this->dao->get();
-
             if($result == false) {
                 return array();
             }

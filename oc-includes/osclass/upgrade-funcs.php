@@ -1,20 +1,19 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     set_time_limit(0);
 
@@ -450,23 +449,85 @@ CREATE TABLE %st_item_description_tmp (
         @mkdir(osc_content_path().'uploads/temp/');
         @mkdir(osc_content_path().'downloads/oc-temp/', 0777);
         @unlink(osc_lib_path() . 'osclass/classes/Watermark.php');
-        osc_set_preference('title_character_length', '100', 'INTEGER');
-        osc_set_preference('description_character_length', '5000', 'INTEGER');
+        osc_set_preference('title_character_length', '100', 'osclass', 'INTEGER');
+        osc_set_preference('description_character_length', '5000', 'osclass', 'INTEGER');
     }
 
-    osc_changeVersionTo(330);
+	if(osc_version() < 340) {
+		$comm->query(sprintf("ALTER TABLE `%st_widget` ADD INDEX `idx_s_description` (`s_description`);", DB_TABLE_PREFIX));
+        osc_set_preference('force_jpeg', '0', 'osclass', 'BOOLEAN');
 
-    if(empty($aMessages)) {
-        osc_add_flash_ok_message(_m('Osclass has been updated successfully. <a href="http://forums.osclass.org/">Need more help?</a>'), 'admin');
-        echo '<script type="text/javascript"> window.location = "'.osc_admin_base_url(true).'?page=tools&action=version"; </script>';
-    } else {
-        echo '<div class="well ui-rounded-corners separate-top-medium">';
-        echo '<p>'.__('Osclass &raquo; Updated correctly').'</p>';
-        echo '<p>'.__('Osclass has been updated successfully. <a href="http://forums.osclass.org/">Need more help?</a>').'</p>';
-        foreach($aMessages as $msg) {
-            echo "<p>".$msg."</p>";
+        @unlink(ABS_PATH . '.maintenance');
+
+        // THESE LINES PROBABLY HIT LOW TIMEOUT SCRIPTS, RUN THE LAST OF THE UPGRADE PROCESS
+        //osc_calculate_location_slug('country');
+        //osc_calculate_location_slug('region');
+        //osc_calculate_location_slug('city');
+	}
+
+    if(osc_version() < 343) {
+        // update t_alerts - Save them in plain json instead of base64
+        $mAlerts = Alerts::newInstance();
+        $aAlerts = $mAlerts->findByType('HOURLY');
+        foreach($aAlerts as $alert) {
+            $s_search = base64_decode($alert['s_search']);
+            if(stripos(strtolower($s_search), 'union select')!==false || stripos(strtolower($s_search), 't_admin')!==false) {
+                $mAlerts->delete(array('pk_i_id' => $alert['pk_i_id']));
+            } else {
+                $mAlerts->update(array('s_search' => $s_search), array('pk_i_id' => $alert['pk_i_id']));
+            }
         }
-        echo "</div>";
+        unset($aAlerts);
+
+        $aAlerts = $mAlerts->findByType('DAILY');
+        foreach($aAlerts as $alert) {
+            $s_search = base64_decode($alert['s_search']);
+            if(stripos(strtolower($s_search), 'union select')!==false || stripos(strtolower($s_search), 't_admin')!==false) {
+                $mAlerts->delete(array('pk_i_id' => $alert['pk_i_id']));
+            } else {
+                $mAlerts->update(array('s_search' => $s_search), array('pk_i_id' => $alert['pk_i_id']));
+            }
+        }
+        unset($aAlerts);
+
+        $aAlerts = $mAlerts->findByType('WEEKLY');
+        foreach($aAlerts as $alert) {
+            $s_search = base64_decode($alert['s_search']);
+            if(stripos(strtolower($s_search), 'union select')!==false || stripos(strtolower($s_search), 't_admin')!==false) {
+                $mAlerts->delete(array('pk_i_id' => $alert['pk_i_id']));
+            } else {
+                $mAlerts->update(array('s_search' => $s_search), array('pk_i_id' => $alert['pk_i_id']));
+            }
+        }
+        unset($aAlerts);
+    }
+
+    if(osc_version() < 350) {
+        osc_set_preference('marketURL', 'http://market.osclass.org/api/v2/');
+        osc_set_preference('marketAPIConnect', '');
+        osc_set_preference('marketCategories', '');
+        osc_set_preference('marketDataUpdate', 0);
+    }
+
+    if(osc_version() < 352) {
+        osc_set_preference('marketURL', 'http://market.osclass.org/api/v2/');
+    }
+
+    osc_changeVersionTo(359);
+
+    if(!defined('IS_AJAX') || !IS_AJAX) {
+        if(empty($aMessages)) {
+            osc_add_flash_ok_message(_m('Osclass has been updated successfully. <a href="http://forums.osclass.org/">Need more help?</a>'), 'admin');
+            echo '<script type="text/javascript"> window.location = "'.osc_admin_base_url(true).'?page=tools&action=version"; </script>';
+        } else {
+            echo '<div class="well ui-rounded-corners separate-top-medium">';
+            echo '<p>'.__('Osclass &raquo; Updated correctly').'</p>';
+            echo '<p>'.__('Osclass has been updated successfully. <a href="http://forums.osclass.org/">Need more help?</a>').'</p>';
+            foreach($aMessages as $msg) {
+                echo "<p>".$msg."</p>";
+            }
+            echo "</div>";
+        }
     }
 
     /**

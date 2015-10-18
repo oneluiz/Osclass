@@ -32,12 +32,14 @@ require_once LIB_PATH . 'osclass/utils.php';
 require_once LIB_PATH . 'osclass/core/Translation.php';
 require_once LIB_PATH . 'osclass/classes/Plugins.php';
 
+Params::init();
+
 if( is_osclass_installed() ) {
     die();
 }
 
 $json_message = array();
-$json_message['status'] = '200';
+$json_message['status'] = true;
 
 $result = basic_info();
 $json_message['email_status']   = $result['email_status'];
@@ -104,7 +106,7 @@ function basic_info() {
     $body .= __('Cheers,')."<br/>";
     $body .= __('The <a href="http://osclass.org/">Osclass</a> team');
 
-    $sitename = strtolower( $_SERVER['SERVER_NAME'] );
+    $sitename = strtolower( Params::getServerParam('SERVER_NAME'));
     if ( substr( $sitename, 0, 4 ) == 'www.' ) {
         $sitename = substr( $sitename, 4 );
     }

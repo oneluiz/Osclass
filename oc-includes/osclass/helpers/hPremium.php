@@ -1,24 +1,20 @@
 <?php
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
      /**
      * Helper Premiums - returns object from the static class (View)
@@ -162,7 +158,7 @@
     function osc_premium_category($locale = "") {
         if ($locale == "") $locale = osc_current_user_locale();
         if ( !View::newInstance()->_exists('premium_category') ) {
-            View::newInstance()->_exportVariableToView('premium_category', Category::newInstance()->findByPrimaryKey( osc_premium_category_id() ) );
+            View::newInstance()->_exportVariableToView('premium_category', Category::newInstance()->findByPrimaryKey( osc_premium_category_id(), $locale ) );
         }
         $category = View::newInstance()->_get('premium_category');
         return (string) osc_field($category, "s_name", $locale);
@@ -216,7 +212,9 @@
      * @return float
      */
     function osc_premium_price() {
-        return (float) osc_premium_field("i_price");
+        if(osc_premium_field("i_price")=='') return null;
+        else return (float) osc_premium_field("i_price");
+
     }
 
     /**
@@ -225,7 +223,7 @@
      * @return string
      */
     function osc_premium_formated_price() {
-        return (string) osc_format_price( osc_premium_field("i_price"), osc_premium_currency_symbol() );
+        return (string) osc_format_price( osc_premium_price() );
     }
 
     /**
@@ -331,7 +329,7 @@
     }
 
     /**
-     * Gets zup code of current premium
+     * Gets zip code of current premium
      *
      * @return string
      */
@@ -374,8 +372,8 @@
      */
     function osc_premium_views() {
         $item = osc_premium();
-        if(isset($item['i_num_views'])) {
-            return (int) osc_premium_field("i_num_views");
+        if(isset($item['i_num_premium_views'])) {
+            return (int) osc_premium_field("i_num_premium_views");
         } else {
             return ItemStats::newInstance()->getViews(osc_premium_id());
         }

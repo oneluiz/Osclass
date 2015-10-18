@@ -1,20 +1,19 @@
 <?php if ( ! defined('OC_ADMIN')) exit('Direct access is not allowed.');
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     function addHelp() {
         echo '<p>' . __('Add, edit or delete information associated to registered users. Keep in mind that deleting a user also deletes all the listings the user published.') . '</p>';
@@ -133,6 +132,7 @@
 
     $aData      = __get('aData');
     $aRawRows   = __get('aRawRows');
+    $iDisplayLength = __get('iDisplayLength');
     $sort       = Params::getParam('sort');
     $direction  = Params::getParam('direction');
 
@@ -259,6 +259,9 @@
             </form>
             <form method="get" action="<?php echo osc_admin_base_url(true); ?>" id="shortcut-filters" class="inline nocsrf">
                 <input type="hidden" name="page" value="users" />
+                <?php if($withFilters) { ?>
+                <a id="btn-hide-filters" href="<?php echo osc_admin_base_url(true).'?page=users'; ?>" class="btn"><?php _e('Reset filters'); ?></a>
+                <?php } ?>
                 <a id="btn-display-filters" href="#" class="btn <?php if($withFilters) { echo 'btn-red'; } ?>"><?php _e('Show filters'); ?></a>
                 <input id="fUser" name="user" type="text" class="fUser input-text input-actions" value="<?php echo osc_esc_html(Params::getParam('user')); ?>" />
                 <input id="fUserId" name="userId" type="hidden" value="<?php echo osc_esc_html(Params::getParam('userId')); ?>" />
@@ -295,7 +298,7 @@
                     <?php }; ?>
                 <?php } else { ?>
                     <tr>
-                        <td colspan="6" class="text-center">
+                        <td colspan="9" class="text-center">
                         <p><?php _e('No data available in table'); ?></p>
                         </td>
                     </tr>
@@ -373,8 +376,13 @@ $(document).ready(function(){
 
     $('#region').on('keyup.autocomplete', function(){
         $('#regionId').val('');
+        if($('#countryId').val()!='' && $('#countryId').val()!=undefined) {
+            var country = $('#countryId').val();
+        } else {
+            var country = $('#country').val();
+        }
         $( this ).autocomplete({
-            source: "<?php echo osc_base_url(true); ?>?page=ajax&action=location_regions&country="+$('#countryId').val(),
+            source: "<?php echo osc_base_url(true); ?>?page=ajax&action=location_regions&country="+country,
             minLength: 2,
             select: function( event, ui ) {
                 $('#cityId').val('');
@@ -386,8 +394,13 @@ $(document).ready(function(){
 
     $('#city').on('keyup.autocomplete', function(){
         $('#cityId').val('');
+        if($('#regionId').val()!='' && $('#regionId').val()!=undefined) {
+            var region = $('#regionId').val();
+        } else {
+            var region = $('#region').val();
+        }
         $( this ).autocomplete({
-            source: "<?php echo osc_base_url(true); ?>?page=ajax&action=location_cities&region="+$('#regionId').val(),
+            source: "<?php echo osc_base_url(true); ?>?page=ajax&action=location_cities&region="+region,
             minLength: 2,
             select: function( event, ui ) {
                 $('#cityId').val(ui.item.id);

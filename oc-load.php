@@ -1,25 +1,22 @@
 <?php
 /*
- *      Osclass – software for creating and publishing online classified
- *                           advertising platforms
+ * Copyright 2014 Osclass
  *
- *                        Copyright (C) 2012 OSCLASS
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       This program is free software: you can redistribute it and/or
- *     modify it under the terms of the GNU Affero General Public License
- *     as published by the Free Software Foundation, either version 3 of
- *            the License, or (at your option) any later version.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *     This program is distributed in the hope that it will be useful, but
- *         WITHOUT ANY WARRANTY; without even the implied warranty of
- *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *             GNU Affero General Public License for more details.
- *
- *      You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
-define('OSCLASS_VERSION', '3.3.0');
+
+define('OSCLASS_VERSION', '3.5.9');
 
 if( !defined('ABS_PATH') ) {
     define( 'ABS_PATH', str_replace('\\', '/', dirname(__FILE__) . '/' ));
@@ -191,9 +188,20 @@ require_once LIB_PATH . 'osclass/frm/BanRule.form.class.php';
 require_once LIB_PATH . 'osclass/functions.php';
 require_once LIB_PATH . 'osclass/helpers/hAdminMenu.php';
 
+
+require_once LIB_PATH . 'osclass/core/iObject_Cache.php';
+require_once LIB_PATH . 'osclass/core/Object_Cache_Factory.php';
+require_once LIB_PATH . 'osclass/helpers/hCache.php';
+
+if( !defined('OSC_CRYPT_KEY') ) {
+    define('OSC_CRYPT_KEY', osc_get_preference('crypt_key'));
+}
+
+osc_cache_init();
+
 define('__OSC_LOADED__', true);
 
-// Moved from BaseModel, since we need some session magic on index.php;)
+Params::init();
 Session::newInstance()->session_start();
 
 if( osc_timezone() != '' ) {
@@ -226,8 +234,8 @@ function osc_meta_generator() {
 }
 osc_add_hook('header', 'osc_show_maintenance');
 osc_add_hook('header', 'osc_meta_generator');
+osc_add_hook('header', 'osc_load_styles', 9);
 osc_add_hook('header', 'osc_load_scripts', 10);
-osc_add_hook('header', 'osc_load_styles', 10);
 
 // register scripts
 osc_register_script('jquery', osc_assets_url('js/jquery.min.js'));
@@ -237,7 +245,7 @@ osc_register_script('jquery-treeview', osc_assets_url('js/jquery.treeview.js'), 
 osc_register_script('jquery-nested', osc_assets_url('js/jquery.ui.nestedSortable.js'), 'jquery');
 osc_register_script('jquery-validate', osc_assets_url('js/jquery.validate.min.js'), 'jquery');
 osc_register_script('tabber', osc_assets_url('js/tabber-minimized.js'), 'jquery');
-osc_register_script('tiny_mce', osc_assets_url('js/tiny_mce/tiny_mce.js'));
+osc_register_script('tiny_mce', osc_assets_url('js/tinymce/tinymce.min.js'));
 osc_register_script('colorpicker', osc_assets_url('js/colorpicker/js/colorpicker.js'));
 osc_register_script('fancybox', osc_assets_url('js/fancybox/jquery.fancybox.pack.js'), array('jquery'));
 osc_register_script('jquery-migrate', osc_assets_url('js/jquery-migrate.min.js'), array('jquery'));

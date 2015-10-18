@@ -4,7 +4,7 @@ INSERT INTO /*TABLE_PREFIX*/t_currency (pk_c_code, s_name, s_description, b_enab
     ('EUR', 'European Union euro', 'Euro €', true);
 
 INSERT INTO /*TABLE_PREFIX*/t_preference VALUES
-    ('osclass', 'version', 330, 'INTEGER')
+    ('osclass', 'version', 359, 'INTEGER')
     ,('osclass', 'theme', 'bender', 'STRING')
     ,('osclass', 'admin_language', 'en_US', 'STRING')
     ,('osclass', 'language', 'en_US', 'STRING')
@@ -120,13 +120,16 @@ INSERT INTO /*TABLE_PREFIX*/t_preference VALUES
     ,('osclass', 'reg_user_post_comments', '0', 'BOOLEAN')
     ,('osclass', 'reg_user_can_contact', '0', 'BOOLEAN')
     ,('osclass', 'marketAllowExternalSources', '0', 'BOOLEAN')
-    ,('osclass', 'marketURL', 'http://market.osclass.org/api/', 'STRING')
+    ,('osclass', 'marketURL', 'http://market.osclass.org/api/v2/', 'STRING')
+    ,('osclass', 'marketAPIConnect', '', 'STRING')
+    ,('osclass', 'marketCategories', '', 'STRING')
+    ,('osclass', 'marketDataUpdate', '0', 'INTEGER')
     ,('osclass', 'watermark_text', '', 'STRING')
     ,('osclass', 'watermark_text_color', '', 'STRING')
     ,('osclass', 'watermark_place', 'centre', 'STRING')
     ,('osclass', 'watermark_image', '', 'STRING')
     ,('osclass', 'last_version_check', '', 'STRING')
-    ,('osclass', 'auto_update', 'major|plugins|themes|languages', 'STRING')
+    ,('osclass', 'auto_update', 'disabled', 'STRING')
     ,('osclass', 'title_character_length', '100', 'INTEGER')
     ,('osclass', 'description_character_length', '5000', 'INTEGER')
     ,('osclass', 'update_core_json', '', 'STRING');

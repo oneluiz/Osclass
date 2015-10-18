@@ -1,23 +1,19 @@
 <?php
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     define('ABS_PATH', str_replace('\\', '/', dirname($_SERVER['SCRIPT_FILENAME']) . '/'));
     if(PHP_SAPI==='cli') {
@@ -40,17 +36,19 @@
 
     if( file_exists(ABS_PATH . '.maintenance') ) {
         if(!osc_is_admin_user_logged_in()) {
+            
+            header('HTTP/1.1 503 Service Temporarily Unavailable');
+            header('Status: 503 Service Temporarily Unavailable');
+            header('Retry-After: 900');
+            
             if(file_exists(WebThemes::newInstance()->getCurrentThemePath().'maintenance.php')) {
                 osc_current_web_theme_path('maintenance.php');
+                die();
             } else {
                 require_once LIB_PATH . 'osclass/helpers/hErrors.php';
 
                 $title   = sprintf(__('Maintenance &raquo; %s'), osc_page_title());
                 $message = sprintf(__('We are sorry for any inconvenience. %s is undergoing maintenance.') . '.', osc_page_title() );
-
-                header('HTTP/1.1 503 Service Temporarily Unavailable');
-                header('Status: 503 Service Temporarily Unavailable');
-                header('Retry-After: 900');
                 osc_die($title, $message);
             }
         } else {
@@ -70,7 +68,7 @@
     }
 
     if(osc_is_web_user_logged_in()) {
-        User::newInstance()->lastAccess(osc_logged_user_id(), date('Y-m-d H:i:s'), $_SERVER['REMOTE_ADDR'], 3600);
+        User::newInstance()->lastAccess(osc_logged_user_id(), date('Y-m-d H:i:s'), Params::getServerParam('REMOTE_ADDR'), 3600);
     }
 
     switch( Params::getParam('page') )
@@ -133,7 +131,7 @@
                             $do = new CWebContact();
                             $do->doModel();
         break;
-        case ('custom'):   //contact
+        case ('custom'):   //custom
                             require_once(osc_lib_path() . 'osclass/controller/custom.php');
                             $do = new CWebCustom();
                             $do->doModel();

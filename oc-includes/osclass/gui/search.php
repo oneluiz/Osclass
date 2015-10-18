@@ -3,7 +3,7 @@
      *      Osclass – software for creating and publishing online classified
      *                           advertising platforms
      *
-     *                        Copyright (C) 2013 OSCLASS
+     *                        Copyright (C) 2014 OSCLASS
      *
      *       This program is free software: you can redistribute it and/or
      *     modify it under the terms of the GNU Affero General Public License
@@ -20,7 +20,7 @@
      */
 
     // meta tag robots
-    if( osc_count_items() == 0 || stripos($_SERVER['REQUEST_URI'], 'search') ) {
+    if( osc_count_items() == 0 || stripos(Params::getServerParam('REQUEST_URI', false, false), 'search') ) {
         osc_add_hook('header','bender_nofollow_construct');
     } else {
         osc_add_hook('header','bender_follow_construct');
@@ -52,8 +52,8 @@
                         select: function( event, ui ) {
                             $("#sRegion").attr("value", ui.item.region);
                             log( ui.item ?
-                                "<?php _e('Selected', 'modern'); ?>: " + ui.item.value + " aka " + ui.item.id :
-                                "<?php _e('Nothing selected, input was', 'modern'); ?> " + this.value );
+                                "<?php echo osc_esc_html( __('Selected', 'bender') ); ?>: " + ui.item.value + " aka " + ui.item.id :
+                                "<?php echo osc_esc_html( __('Nothing selected, input was', 'bender') ); ?> " + this.value );
                         }
                     });
                 });

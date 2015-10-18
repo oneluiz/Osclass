@@ -1,21 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     class CAdminMarket extends AdminSecBaseModel
     {
@@ -28,8 +27,35 @@
         function doModel()
         {
             parent::doModel();
-            //specific things for this class
+
+            if((time()-(int)(osc_market_data_update()))>(86400)) { //84600 = 24*60*60
+                $json = osc_file_get_contents(
+                    osc_market_url() . 'categories/',
+                    array(
+                        'api_key' => osc_market_api_connect()
+                    )
+                );
+                $data = @json_decode($json, true);
+                if(is_array($data)) {
+                    osc_set_preference('marketCategories', $json);
+                    osc_set_preference('marketDataUpdate', time());
+                    osc_reset_preferences();
+                }
+            }
+
             switch ($this->action) {
+                case('buy'):
+                    osc_csrf_check();
+                    $json = osc_file_get_contents(
+                        osc_market_url() . 'token/',
+                        array(
+                            'api_key' => osc_market_api_connect()
+                        )
+                    );
+                    $data = json_decode($json, true);
+                    osc_redirect_to(Params::getParam('url') . '?token=' . @$data['token']);
+                    break;
+                case('purchases');
                 case('plugins'):
                 case('themes'):
                 case('languages'):
@@ -37,8 +63,10 @@
                     $title = array(
                         'plugins'    => __('Recommended plugins for You'),
                         'themes'     => __('Recommended themes for You'),
-                        'languages'  => __('Languages for this version')
+                        'languages'  => __('Languages for this version'),
+                        'purchases'  => __('My purchases')
                         );
+
 
                     // page number
                     $marketPage     = Params::getParam("mPage");
@@ -46,7 +74,7 @@
                     if($marketPage>=1) $marketPage--;
 
                     // api
-                    $url            = osc_market_url($section)."page/".$marketPage.'/length/9/';
+                    $url            = osc_market_url($section).(Params::getParam('sCategory')!=''?'category/'.Params::getParam('sCategory').'/':'')."page/".$marketPage.'/length/9/';
                     // default sort
                     $sort_actual    = '';
                     $sort_download  = $url_actual.'&sort=downloads&order=desc';
@@ -91,7 +119,7 @@
                     }
 
                     // pageSize or length attribute is hardcoded
-                    $out    = osc_file_get_contents($url);
+                    $out    = osc_file_get_contents($url, array('api_key' => osc_market_api_connect()));
                     $array  = json_decode($out, true);
 
                     $output_pagination = '';
@@ -123,11 +151,12 @@
                     $this->_exportVariableToView("order_download"     , $order_download);
                     $this->_exportVariableToView("order_updated"      , $order_updated);
 
+                    $this->_exportVariableToView("market_categories"  , json_decode(osc_market_categories(), true));
 
                     $this->_exportVariableToView('pagination', $output_pagination);
 
                     $this->doView("market/section.php");
-                break;
+                    break;
                 default:
                     $aPlugins       = array();
                     $aThemes        = array();
@@ -167,12 +196,17 @@
                     $this->_exportVariableToView("aThemes"      , $aThemes);
                     $this->_exportVariableToView("aLanguages"   , $aLanguages);
 
+                    $this->_exportVariableToView("market_categories"  , json_decode(osc_market_categories(), true));
+
                     $this->doView("market/index.php");
                 break;
             }
         }
 
-        //hopefully generic...
+        function __call($name, $arguments)
+        {
+            // TODO: Implement __call() method.
+        }//hopefully generic...
         function doView($file)
         {
             osc_run_hook("before_admin_html");

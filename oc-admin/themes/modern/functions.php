@@ -19,6 +19,7 @@ function modern_compactmode_actions(){
     echo json_encode($modeStatus);
 }
 
+// favicons
 function admin_header_favicons() {
     $favicons   = array();
     $favicons[] = array(
@@ -48,16 +49,14 @@ function admin_header_favicons() {
     );
 
     $favicons = osc_apply_filter('admin_favicons', $favicons);
-?>
-        <!-- favicons
-        ================================================== -->
-<?php
+
     foreach($favicons as $f) { ?>
         <link <?php if($f['rel'] !== '') { ?>rel="<?php echo $f['rel']; ?>" <?php } if($f['sizes'] !== '') { ?>sizes="<?php echo $f['sizes']; ?>" <?php } ?>href="<?php echo $f['href']; ?>">
     <?php }
 }
 osc_add_hook('admin_header', 'admin_header_favicons');
 
+// admin footer
 function admin_footer_html() { ?>
     <div class="float-left">
         <?php printf(__('Thank you for using <a href="%s" target="_blank">Osclass</a>'), 'http://osclass.org/'); ?> -
@@ -78,9 +77,8 @@ function admin_footer_html() { ?>
        <input type="hidden" name="currency_code" value="USD">
        <input type="hidden" name="lc" value="US" />
     </form>
-    <!-- javascript
-    ================================================== -->
-    <script type="text/javascript">
+
+<script type="text/javascript">
         var $ninja = $('#ninja');
 
         $ninja.click(function(){
@@ -91,16 +89,15 @@ function admin_footer_html() { ?>
 }
 osc_add_hook('admin_content_footer', 'admin_footer_html');
 
-function admin_theme_js() { ?>
-    <!-- scripts
-    ================================================== -->
-    <?php osc_load_scripts();
+// scripts
+function admin_theme_js() {
+    osc_load_scripts();
 }
 osc_add_hook('admin_header', 'admin_theme_js', 9);
-function admin_theme_css() { ?>
-    <!-- styles
-    ================================================== -->
-    <?php osc_load_styles();
+
+// css
+function admin_theme_css() {
+    osc_load_styles();
 }
 osc_add_hook('admin_header', 'admin_theme_css', 9);
 
@@ -115,6 +112,7 @@ function printLocaleTabs($locales = null) {
     echo '</ul></div>';
     };
 }
+
 function printLocaleTitle($locales = null, $item = null) {
     if($locales==null) { $locales = osc_get_locales(); }
     if($item==null) { $item = osc_item(); }
@@ -133,6 +131,7 @@ function printLocaleTitle($locales = null, $item = null) {
         echo '</div>';
     }
 }
+
 function printLocaleTitlePage($locales = null,$page = null) {
     if($locales==null) { $locales = osc_get_locales(); }
     $aFieldsDescription = Session::newInstance()->_getForm("aFieldsDescription");
@@ -154,6 +153,7 @@ function printLocaleTitlePage($locales = null,$page = null) {
         echo '</div>';
     }
 }
+
 function printLocaleDescription($locales = null, $item = null) {
     if($locales==null) { $locales = osc_get_locales(); }
     if($item==null) { $item = osc_item(); }
@@ -172,6 +172,7 @@ function printLocaleDescription($locales = null, $item = null) {
         echo '<textarea id="' . $name . '" name="' . $name . '" rows="10">' . $description . '</textarea></div>';
     }
 }
+
 function printLocaleDescriptionPage($locales = null, $page = null) {
     if($locales==null) { $locales = osc_get_locales(); }
     $aFieldsDescription = Session::newInstance()->_getForm("aFieldsDescription");
@@ -255,8 +256,13 @@ function drawMarketItem($item,$color = false){
         $featuredClass .= 'is-downloaded';
     }
 
-    $style = 'background-image:url('.$thumbnail.');';
-    echo '<a href="#'.$item['s_update_url'].'" class="mk-item-parent '.$featuredClass.$updateClass.$compatible.'" data-type="'.$type.'"'.$updateData.' data-gr="'.$color.'" data-letter="'.$item['s_update_url'][0].'">';
+    $buyClass = '';
+    if($item['i_price'] != '' && (float)$item['i_price'] > 0  && $item['b_paid'] == 1) {
+        $buyClass = ' is-buy ';
+    }
+
+        $style = 'background-image:url('.$thumbnail.');';
+    echo '<a href="#'.$item['s_update_url'].'" class="mk-item-parent '.$featuredClass.$updateClass.$compatible.$buyClass.'" data-type="'.$type.'"'.$updateData.' data-gr="'.$color.'" data-letter="'.$item['s_update_url'][0].'">';
     echo '<div class="mk-item mk-item-'.$type.'">';
     echo '    <div class="banner" style="'.$style.'">'.$letterDraw.'</div>';
     echo '    <div class="mk-info"><i class="flag"></i>';
@@ -265,7 +271,11 @@ function drawMarketItem($item,$color = false){
     echo '        <i>by '.$item['s_contact_name'].'</i>';
     echo '        <div class="market-actions">';
     echo '            <span class="more">'.__('View more').'</span>';
-    echo '            <span class="download-btn'.$compatible.'" data-code="'.$item['s_update_url'].'" data-type="'.$type.'"'.'>'.__('Download').'</span>';
+    if($item['i_price'] != '' && (float)$item['i_price'] > 0 && $item['b_paid'] == 0) {
+        echo '            <span class="buy-btn' . $compatible . '" data-code="' . $item['s_buy_url'] . '" data-type="' . $type . '"' . '>' . sprintf(__('Buy $%s'), number_format($item['i_price']/1000000, 0, '.', ',')) . '</span>';
+    } else {
+        echo '            <span class="download-btn' . $compatible . '" data-code="' . $item['s_update_url'] . '" data-type="' . $type . '"' . '>' . __('Download') . '</span>';
+    }
     echo '        </div>';
     echo '    </div>';
     echo '</div>';
@@ -289,4 +299,64 @@ function check_market_compatibility($versions) {
     }
     return false;
 }
+
+function check_version_admin_footer() {
+    if( (time() - osc_last_version_check()) > (24 * 3600) ) {
+        ?>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                $.getJSON(
+                    '<?php echo osc_admin_base_url(true); ?>?page=ajax&action=check_version',
+                    {},
+                    function(data){}
+                );
+            });
+        </script>
+        <?php
+    }
+}
+osc_add_hook('admin_footer', 'check_version_admin_footer');
+
+function check_languages_admin_footer() {
+    ?>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $.getJSON(
+                '<?php echo osc_admin_base_url(true); ?>?page=ajax&action=check_languages',
+                {},
+                function(data){}
+            );
+        });
+    </script>
+<?php
+}
+
+function check_themes_admin_footer() {
+    ?>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $.getJSON(
+                '<?php echo osc_admin_base_url(true); ?>?page=ajax&action=check_themes',
+                {},
+                function(data){}
+            );
+        });
+    </script>
+<?php
+}
+
+function check_plugins_admin_footer() {
+    ?>
+    <script type="text/javascript">
+        $(document).ready(function() {
+            $.getJSON(
+                '<?php echo osc_admin_base_url(true); ?>?page=ajax&action=check_plugins',
+                {},
+                function(data){}
+            );
+        });
+    </script>
+<?php
+}
+
 /* end of file */

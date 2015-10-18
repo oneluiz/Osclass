@@ -1,20 +1,19 @@
 <?php
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
     function addHelp() {
         echo '<p>' . __('Browse and download available Osclass plugins, from a constantly-updated selection. After downloading a plugin, you have to install it and configure it to get it up and running.') . '</p>';
     }
@@ -27,9 +26,30 @@
     $aLanguages = __get('aLanguages');
 
     $colors = array_merge(gradienColors(),array_merge(gradienColors(),gradienColors()));
+
+    $categories     = __get('market_categories');
 ?>
 <div class="grid-market">
-    <h2 class="section-title"><?php _e('Recommended plugins for You'); ?><a href="<?php echo osc_admin_base_url(true).'?page=market&action=plugins'; ?>"><?php echo sprintf(__('View all (%s)'), $count['pluginsTotal']); ?></a></h2>
+
+</div>
+<div class="grid-market">
+    <h2 class="section-title"><?php _e('Recommended plugins for You'); ?><a href="<?php echo osc_admin_base_url(true).'?page=market&action=plugins'; ?>"><?php echo sprintf(__('View all (%s)'), $count['pluginsTotal']); ?></a>
+
+
+        <span class="wrapper_market_categories">
+            <select id="market_categories">
+                    <option section-data="" value="" ><?php _e('Select a category'); ?></option>
+                <?php foreach($categories as $k => $section) { ?>
+                    <option section-data="<?php echo $k; ?>" value="<?php echo $section['value'] ?>" ><?php echo $section['label']; ?></option>
+                    <?php foreach($section['categories'] as $c) { ?>
+                        <option section-data="<?php echo $k; ?>" value="<?php echo $c['value'] ?>" >&nbsp;&nbsp;<?php echo $c['label']; ?></option>
+                    <?php }; ?>
+                <?php }; ?>
+            </select>
+        </span>
+
+
+    </h2>
     <?php
     foreach($aPlugins as $item){
         drawMarketItem($item,$colors[array_rand($colors)]);

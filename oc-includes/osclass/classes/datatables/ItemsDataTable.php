@@ -1,24 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     /**
      * ItemsDataTable class
@@ -142,8 +138,8 @@
             $this->addColumn('user', __('User'));
             $this->addColumn('category', __('Category'));
             $this->addColumn('location', __('Location'));
-            $this->addColumn('date', '<a href="'.$url_base.$arg_date.'">'.__('Date').'</a>');
-            $this->addColumn('expiration', '<a href="'.$url_base.$arg_expiration.'">'.__('Expiration date').'</a>');
+            $this->addColumn('date', '<a href="'.osc_esc_html($url_base.$arg_date).'">'.__('Date').'</a>');
+            $this->addColumn('expiration', '<a href="'.osc_esc_html($url_base.$arg_expiration).'">'.__('Expiration date').'</a>');
 
             $dummy = &$this;
             osc_run_hook("admin_items_table", $dummy);
@@ -201,13 +197,13 @@
             $this->addColumn('bulkactions', '<input id="check_all" type="checkbox" />');
             $this->addColumn('title', __('Title'));
             $this->addColumn('user', __('User'));
-            $this->addColumn('spam', '<a id="order_spam" href="'.$url_spam.'">'.__('Spam').'</a>');
-            $this->addColumn('bad', '<a id="order_bad" href="'.$url_bad.'">'.__('Misclassified').'</a>');
-            $this->addColumn('rep', '<a id="order_rep" href="'.$url_rep.'">'.__('Duplicated').'</a>');
-            $this->addColumn('exp', '<a id="order_exp" href="'.$url_exp.'">'.__('Expired').'</a>');
-            $this->addColumn('off', '<a id="order_off" href="'.$url_off.'">'.__('Offensive').'</a>');
-            $this->addColumn('date', '<a id="order_date" href="'.$url_date.'">'.__('Date').'</a>');
-            $this->addColumn('expiration', '<a id="order_expiration" href="'.$url_expiration.'">'.__('Expiration date').'</a>');
+            $this->addColumn('spam', '<a id="order_spam" href="'.osc_esc_html($url_spam).'">'.__('Spam').'</a>');
+            $this->addColumn('bad', '<a id="order_bad" href="'.osc_esc_html($url_bad).'">'.__('Misclassified').'</a>');
+            $this->addColumn('rep', '<a id="order_rep" href="'.osc_esc_html($url_rep).'">'.__('Duplicated').'</a>');
+            $this->addColumn('exp', '<a id="order_exp" href="'.osc_esc_html($url_exp).'">'.__('Expired').'</a>');
+            $this->addColumn('off', '<a id="order_off" href="'.osc_esc_html($url_off).'">'.__('Offensive').'</a>');
+            $this->addColumn('date', '<a id="order_date" href="'.osc_esc_html($url_date).'">'.__('Date').'</a>');
+            $this->addColumn('expiration', '<a id="order_expiration" href="'.osc_esc_html($url_expiration).'">'.__('Expiration date').'</a>');
 
             $dummy = &$this;
             osc_run_hook("admin_items_reported_table", $dummy);
@@ -224,7 +220,7 @@
                     $options = array();
                     // -- prepare data --
                     // prepare item title
-                    $title = mb_substr($aRow['s_title'], 0, 30, 'utf-8');
+                    $title = mb_substr($aRow['s_title'], 0, 30, 'UTF-8');
                     if($title != $aRow['s_title']) {
                         $title .= '...';
                     }
@@ -293,12 +289,16 @@
                     $status = $this->get_row_status();
                     $row['status-border'] = '';
                     $row['status'] = $status['text'];
-                    $row['title'] = '<a href="' . osc_item_url().'" target="_blank">' . $title. '</a>'. $actions;
-                    $row['user'] = $aRow['s_user_name'];
+                    $row['title'] = '<a href="' . osc_item_url() . '" target="_blank">' . $title. '</a>'. $actions;
+                    if($aRow['fk_i_user_id']!=null) {
+                        $row['user'] = '<a href="' . osc_admin_base_url(true) . '?page=users&action=edit&id=' . $aRow['fk_i_user_id'] . '" target="_blank">' . $aRow['s_user_name'] . '</a>';
+                    } else {
+                        $row['user'] = $aRow['s_user_name'];
+                    }
                     $row['category'] = $aRow['s_category_name'];
                     $row['location'] = $this->get_row_location();
-                    $row['date'] = osc_format_date($aRow['dt_pub_date']);
-                    $row['expiration'] = osc_format_date($aRow['dt_expiration']);
+                    $row['date'] = osc_format_date($aRow['dt_pub_date'], osc_date_format() . ' ' . osc_time_format() );
+                    $row['expiration'] = ($aRow['dt_expiration'] != '9999-12-31 23:59:59') ? osc_format_date($aRow['dt_expiration'], osc_date_format() . ' ' . osc_time_format() ) : __('Never expires');
 
                     $row = osc_apply_filter('items_processing_row', $row, $aRow);
 
@@ -320,7 +320,7 @@
                     $options = array();
                     // -- prepare data --
                     // prepare item title
-                    $title = mb_substr($aRow['s_title'], 0, 30, 'utf-8');
+                    $title = mb_substr($aRow['s_title'], 0, 30, 'UTF-8');
                     if($title != $aRow['s_title']) {
                         $title .= '...';
                     }
@@ -364,8 +364,8 @@
                     $row['rep'] = $aRow['i_num_repeated'];
                     $row['exp'] = $aRow['i_num_expired'];
                     $row['off'] = $aRow['i_num_offensive'];
-                    $row['date'] = osc_format_date($aRow['dt_pub_date']);
-                    $row['expiration'] = ($aRow['dt_expiration'] != '9999-12-31 23:59:59') ? osc_format_date($aRow['dt_expiration']) : __('Never expires');
+                    $row['date'] = osc_format_date($aRow['dt_pub_date'], osc_date_format() . ' ' . osc_time_format() );
+                    $row['expiration'] = ($aRow['dt_expiration'] != '9999-12-31 23:59:59') ? osc_format_date($aRow['dt_expiration'], osc_date_format() . ' ' . osc_time_format() ) : __('Never expires') ;
 
                     $row = osc_apply_filter('items_processing_reported_row', $row, $aRow);
 
@@ -489,7 +489,7 @@
 
             // column sort
             $sort       = $_get['sort'];
-            $arraySortColumns = array('date'  => 'dt_pub_date');
+            $arraySortColumns = array('date'  => 'dt_pub_date', 'expiration'  => 'dt_expiration');
             if(!key_exists($sort, $arraySortColumns)) {
                 $sort       = 'dt_pub_date';
             } else {
@@ -527,8 +527,9 @@
          *     - inactive
          *     - premium
          *     - active
+         *     - expired
          *
-         * @since 3.2
+         * @since 3.2 -> 3.4.x
          *
          * @return array Array with the class and text of the status of the listing in this row. Example:
          *     array(
@@ -563,6 +564,13 @@
                 return array(
                     'class' => 'status-premium',
                     'text'  => __('Premium')
+                );
+            }
+
+            if( osc_item_is_expired() ) {
+                return array(
+                    'class' => 'status-expired',
+                    'text'  => __('Expired')
                 );
             }
 

@@ -115,7 +115,7 @@ CREATE TABLE /*TABLE_PREFIX*/t_user (
     s_username VARCHAR(100) NOT NULL,
     s_password CHAR(60) NOT NULL,
     s_secret VARCHAR(40) NULL,
-    s_email VARCHAR(100) NULL,
+    s_email VARCHAR(100) NOT NULL,
     s_website VARCHAR(100) NULL,
     s_phone_land VARCHAR(45),
     s_phone_mobile VARCHAR(45),
@@ -217,7 +217,7 @@ CREATE TABLE /*TABLE_PREFIX*/t_item (
     i_price BIGINT(20) NULL,
     fk_c_currency_code CHAR(3) NULL,
     s_contact_name VARCHAR(100) NULL,
-    s_contact_email VARCHAR(140) NULL,
+    s_contact_email VARCHAR(140) NOT NULL,
     s_ip VARCHAR(64) NOT NULL DEFAULT '',
     b_premium TINYINT(1) NOT NULL DEFAULT 0,
     b_enabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -233,6 +233,7 @@ CREATE TABLE /*TABLE_PREFIX*/t_item (
         FOREIGN KEY (fk_c_currency_code) REFERENCES /*TABLE_PREFIX*/t_currency (pk_c_code),
 
         INDEX (fk_i_user_id),
+        INDEX idx_b_premium (b_premium),
         INDEX idx_s_contact_email (s_contact_email(10)),
         INDEX (fk_i_category_id),
         INDEX (fk_c_currency_code),
@@ -417,7 +418,7 @@ CREATE TABLE /*TABLE_PREFIX*/t_meta_fields (
     s_name VARCHAR(255) NOT NULL,
     s_slug VARCHAR(255) NOT NULL,
     e_type ENUM('TEXT','TEXTAREA','DROPDOWN','RADIO','CHECKBOX','URL', 'DATE', 'DATEINTERVAL') NOT NULL DEFAULT  'TEXT',
-    s_options VARCHAR(255) NULL,
+    s_options VARCHAR(2048) NULL,
     b_required TINYINT(1) NOT NULL DEFAULT 0,
     b_searchable TINYINT(1) NOT NULL DEFAULT 0,
 
@@ -437,7 +438,7 @@ CREATE TABLE /*TABLE_PREFIX*/t_item_meta (
     fk_i_item_id INT(10) UNSIGNED NOT NULL,
     fk_i_field_id INT(10) UNSIGNED NOT NULL,
     s_value TEXT NULL,
-    s_multi VARCHAR(20) NULL,
+    s_multi VARCHAR(20) NOT NULL DEFAULT '',
 
         PRIMARY KEY (fk_i_item_id, fk_i_field_id, s_multi),
         INDEX s_value (s_value(255)),

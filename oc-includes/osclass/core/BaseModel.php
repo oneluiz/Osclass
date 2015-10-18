@@ -1,24 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     abstract class BaseModel
     {
@@ -30,9 +26,9 @@
         function __construct()
         {
             // this is necessary because if HTTP_HOST doesn't have the PORT the parse_url is null
-            $current_host = parse_url($_SERVER['HTTP_HOST'], PHP_URL_HOST);
+            $current_host = parse_url(Params::getServerParam('HTTP_HOST'), PHP_URL_HOST);
             if( $current_host === null ) {
-                $current_host = $_SERVER['HTTP_HOST'];
+                $current_host = Params::getServerParam('HTTP_HOST');
             }
 
             if( parse_url(osc_base_url(), PHP_URL_HOST) !== $current_host ) {
@@ -44,12 +40,12 @@
                 // append the domain
                 $url .= parse_url(osc_base_url(), PHP_URL_HOST);
                 // append the port number if it's necessary
-                $http_port = parse_url($_SERVER['HTTP_HOST'], PHP_URL_PORT);
+                $http_port = parse_url(Params::getServerParam('HTTP_HOST'), PHP_URL_PORT);
                 if( $http_port !== 80 ) {
-                    $url .= ':' . parse_url($_SERVER['HTTP_HOST'], PHP_URL_PORT);
+                    $url .= ':' . parse_url(Params::getServerParam('HTTP_HOST'), PHP_URL_PORT);
                 }
                 // append the request
-                $url .= $_SERVER['REQUEST_URI'];
+                $url .= Params::getServerParam('REQUEST_URI', false, false);
                 $this->redirectTo($url);
             }
 
@@ -167,6 +163,15 @@
                             } else {
                                 $this->do400();
                             }
+                        } else if($subdomain_type=='user') {
+                            $user = User::newInstance()->findByUsername($subdomain);
+                            if(isset($user['pk_i_id'])) {
+                                View::newInstance()->_exportVariableToView('subdomain_name', $user['s_name']);
+                                View::newInstance()->_exportVariableToView('subdomain_slug', $user['s_username']);
+                                Params::setParam('sUser', $user['pk_i_id']);
+                            } else {
+                                $this->do400();
+                            }
                         } else {
                             $this->do400();
                         }
@@ -177,4 +182,3 @@
     }
 
     /* file end: ./oc-includes/osclass/core/BaseModel.php */
-?>

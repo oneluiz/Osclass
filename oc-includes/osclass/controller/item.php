@@ -1,21 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     class CWebItem extends BaseModel
     {
@@ -176,7 +175,7 @@
                 case 'item_edit':   // edit item
                                     $secret = Params::getParam('secret');
                                     $id     = Params::getParam('id');
-                                    $item   = $this->itemManager->listWhere("i.pk_i_id = '%s' AND ((i.s_secret = '%s' AND i.fk_i_user_id IS NULL) OR (i.fk_i_user_id = '%d'))", addslashes($id), addslashes($secret), addslashes($this->userId));
+                                    $item   = $this->itemManager->listWhere("i.pk_i_id = %d AND ((i.s_secret = %s AND i.fk_i_user_id IS NULL) OR (i.fk_i_user_id = %d))", (int)($id), $secret, (int)($this->userId));
                                     if (count($item) == 1) {
                                         $item     = Item::newInstance()->findByPrimaryKey($id);
 
@@ -205,7 +204,7 @@
 
                     $secret = Params::getParam('secret');
                     $id     = Params::getParam('id');
-                    $item   = $this->itemManager->listWhere("i.pk_i_id = '%s' AND ((i.s_secret = '%s' AND i.fk_i_user_id IS NULL) OR (i.fk_i_user_id = '%d'))", addslashes($id), addslashes($secret), addslashes($this->userId));
+                    $item   = $this->itemManager->listWhere("i.pk_i_id = %d AND ((i.s_secret = %s AND i.fk_i_user_id IS NULL) OR (i.fk_i_user_id = %d))", (int)($id), $secret, (int)($this->userId));
 
                     if (count($item) == 1) {
                         $this->_exportVariableToView('item', $item[0]);
@@ -249,7 +248,7 @@
                 case 'activate':
                     $secret = Params::getParam('secret');
                     $id     = Params::getParam('id');
-                    $item   = $this->itemManager->listWhere("i.pk_i_id = '%s' AND ((i.s_secret = '%s') OR (i.fk_i_user_id = '%d'))", addslashes($id), addslashes($secret), addslashes($this->userId));
+                    $item   = $this->itemManager->listWhere("i.pk_i_id = %d AND ((i.s_secret = %s) OR (i.fk_i_user_id = %d))", (int)($id), $secret, (int)($this->userId));
 
                     // item doesn't exist
                     if( count($item) == 0 ) {
@@ -277,7 +276,7 @@
                 case 'item_delete':
                     $secret = Params::getParam('secret');
                     $id     = Params::getParam('id');
-                    $item   = $this->itemManager->listWhere("i.pk_i_id = '%s' AND ((i.s_secret = '%s') OR (i.fk_i_user_id = '%d'))", addslashes($id), addslashes($secret), addslashes($this->userId));
+                    $item   = $this->itemManager->listWhere("i.pk_i_id = %d AND ((i.s_secret = %s) OR (i.fk_i_user_id = %d))", (int)($id), $secret, (int)($this->userId));
                     if (count($item) == 1) {
                         $mItems = new ItemActions(false);
                         $success = $mItems->delete($item[0]['s_secret'], $item[0]['pk_i_id']);
@@ -361,7 +360,7 @@
 
                     require_once(osc_lib_path() . 'osclass/user-agents.php');
                     foreach($user_agents as $ua) {
-                        if(preg_match('|'.$ua.'|', @$_SERVER['HTTP_USER_AGENT'])) {
+                        if(preg_match('|'.$ua.'|', Params::getServerParam('HTTP_USER_AGENT'))) {
                             // mark item if it's not a bot
                             $mItem = new ItemActions(false);
                             $mItem->mark($id, $as);
@@ -435,6 +434,11 @@
                 break;
                 case 'contact_post':
                     osc_csrf_check();
+                    if( osc_reg_user_can_contact() && !osc_is_web_user_logged_in() ){
+                        osc_add_flash_warning_message( _m("You can't contact the seller, only registered users can") );
+                        $this->redirectTo( osc_base_url(true) );
+                    }
+
                     $item = $this->itemManager->findByPrimaryKey( Params::getParam('id') );
                     $this->_exportVariableToView('item', $item);
                     if ((osc_recaptcha_private_key() != '')) {
@@ -514,7 +518,7 @@
                 case 'delete_comment':
                     osc_csrf_check();
                     $mItem = new ItemActions(false);
-                    $status = $mItem->add_comment();
+                    $status = $mItem->add_comment(); // @TOFIX @FIXME $status never used + ?? need to add_comment() before deleting it??
 
                     $itemId    = Params::getParam('id');
                     $commentId = Params::getParam('comment');
@@ -583,6 +587,8 @@
                     } else if ($item['b_enabled'] == 0) {
                         if( osc_is_admin_user_logged_in() ) {
                             osc_add_flash_warning_message( _m("The listing hasn't been enabled. Please enable it in order to make it public") );
+                        } else if(osc_is_web_user_logged_in() && osc_logged_user_id()==$item['fk_i_user_id']) {
+                            osc_add_flash_warning_message( _m("The listing has been blocked or is awaiting moderation from the admin") );
                         } else {
                             $this->do400();
                             return;
@@ -592,7 +598,7 @@
                     if(!osc_is_admin_user_logged_in() && !($item['fk_i_user_id']!='' && $item['fk_i_user_id']==osc_logged_user_id())) {
                         require_once(osc_lib_path() . 'osclass/user-agents.php');
                         foreach($user_agents as $ua) {
-                            if(preg_match('|'.$ua.'|', @$_SERVER['HTTP_USER_AGENT'])) {
+                            if(preg_match('|'.$ua.'|', Params::getServerParam('HTTP_USER_AGENT'))) {
                                 $mStats = new ItemStats();
                                 $mStats->increase('i_num_views', $item['pk_i_id']);
                                 break;
@@ -616,10 +622,10 @@
 
                     // redirect to the correct url just in case it has changed
                     $itemURI = str_replace(osc_base_url(), '', osc_item_url());
-                    $URI = preg_replace('|^' . REL_WEB_URL . '|', '', $_SERVER['REQUEST_URI']);
+                    $URI = preg_replace('|^' . REL_WEB_URL . '|', '', Params::getServerParam('REQUEST_URI', false, false));
                     // do not clean QUERY_STRING if permalink is not enabled
                     if( osc_rewrite_enabled () ) {
-                        $URI = str_replace('?' . $_SERVER['QUERY_STRING'], '', $URI);
+                        $URI = str_replace('?' . Params::getServerParam('QUERY_STRING', false, false), '', $URI);
                     } else {
                         $params_keep = array('page', 'id');
                         $params      = array();

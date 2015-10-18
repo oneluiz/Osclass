@@ -1,23 +1,64 @@
 <?php
 /*
- *      Osclass – software for creating and publishing online classified
- *                           advertising platforms
+ * Copyright 2014 Osclass
  *
- *                        Copyright (C) 2012 OSCLASS
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *       This program is free software: you can redistribute it and/or
- *     modify it under the terms of the GNU Affero General Public License
- *     as published by the Free Software Foundation, either version 3 of
- *            the License, or (at your option) any later version.
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *     This program is distributed in the hope that it will be useful, but
- *         WITHOUT ANY WARRANTY; without even the implied warranty of
- *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *             GNU Affero General Public License for more details.
- *
- *      You should have received a copy of the GNU Affero General Public
- * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
+
+require_once dirname(dirname(__FILE__)) . '/htmlpurifier/HTMLPurifier.auto.php';
+function _purify($value, $xss_check)
+{
+    if( !$xss_check ) {
+        return $value;
+    }
+
+    $_config = HTMLPurifier_Config::createDefault();
+    $_config->set('HTML.Allowed', '');
+    $_config->set('Cache.SerializerPath', dirname(dirname(dirname(dirname(__FILE__)))) . '/oc-content/uploads/');
+
+    $_purifier = new HTMLPurifier($_config);
+
+
+    if( is_array($value) ) {
+        foreach($value as $k => &$v) {
+            $v = _purify($v, $xss_check); // recursive
+        }
+    } else {
+        $value = $_purifier->purify($value);
+    }
+
+    return $value;
+}
+function getServerParam($param, $htmlencode = false, $xss_check = true, $quotes_encode = true)
+{
+    if ($param == "") return '';
+    if (!isset($_SERVER[$param])) return '';
+    $value = _purify($_SERVER[$param], $xss_check);
+    if ($htmlencode) {
+        if($quotes_encode) {
+            return htmlspecialchars(stripslashes($value), ENT_QUOTES);
+        } else {
+            return htmlspecialchars(stripslashes($value), ENT_NOQUOTES);
+        }
+    }
+
+    if(get_magic_quotes_gpc()) {
+        $value = strip_slashes_extended($value);
+    }
+
+    return ($value);
+}
 
 /*
  * The url of the site
@@ -27,10 +68,10 @@
  * @return string The url of the site
  */
 function get_absolute_url( ) {
-    $protocol = ( isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on' ) ? 'https' : 'http';
-    $pos      = strpos($_SERVER['REQUEST_URI'], 'oc-includes');
-    $URI      = rtrim( substr( $_SERVER['REQUEST_URI'], 0, $pos ), '/' ) . '/';
-    return $protocol . '://' . $_SERVER['HTTP_HOST'] . $URI;
+    $protocol = ( getServerParam('HTTPS') == 'on' || getServerParam('HTTP_X_FORWARDED_PROTO')=='https') ? 'https' : 'http';
+    $pos      = strpos(getServerParam('REQUEST_URI'), 'oc-includes');
+    $URI      = rtrim( substr( getServerParam('REQUEST_URI'), 0, $pos ), '/' ) . '/';
+    return $protocol . '://' . getServerParam('HTTP_HOST') . $URI;
 }
 
 /*
@@ -41,7 +82,7 @@ function get_absolute_url( ) {
  * @return string The relative url on the domain url
  */
 function get_relative_url( ) {
-    $url = $_SERVER['REQUEST_URI'];
+    $url = Params::getServerParam('REQUEST_URI', false, false);
     return substr($url, 0, strpos($url, '/oc-includes')) . "/";
 }
 
@@ -185,6 +226,7 @@ function oc_install( ) {
     $password    = Params::getParam('password', false, false);
     $tableprefix = Params::getParam('tableprefix');
     $createdb    = false;
+    require_once LIB_PATH . 'osclass/helpers/hSecurity.php';
 
     if( $tableprefix == '' ) {
         $tableprefix = 'oc_';
@@ -208,13 +250,13 @@ function oc_install( ) {
 
             switch ($error_num) {
                 case 1049:  return array('error' => __("The database doesn't exist. You should check the \"Create DB\" checkbox and fill in a username and password with the right privileges"));
-                break;
+                    break;
                 case 1045:  return array('error' => __('Cannot connect to the database. Check if the user has privileges.'));
-                break;
+                    break;
                 case 1044:  return array('error' => __('Cannot connect to the database. Check if the username and password are correct.'));
-                break;
+                    break;
                 case 2005:  return array('error' => __("Can't resolve MySQL host. Check if the host is correct."));
-                break;
+                    break;
                 default:    return array('error' => sprintf(__('Cannot connect to the database. Error number: %s')), $error_num);
                 break;
             }
@@ -257,13 +299,13 @@ function oc_install( ) {
 
         switch( $error_num ) {
             case 1049:  return array('error' => __("The database doesn't exist. You should check the \"Create DB\" checkbox and fill in a username and password with the right privileges"));
-            break;
+                break;
             case 1045:  return array('error' => __('Cannot connect to the database. Check if the user has privileges.'));
-            break;
+                break;
             case 1044:  return array('error' => __('Cannot connect to the database. Check if the username and password are correct.'));
-            break;
+                break;
             case 2005:  return array('error' => __("Can't resolve MySQL host. Check if the host is correct."));
-            break;
+                break;
             default:    return array('error' => sprintf(__('Cannot connect to the database. Error number: %s'), $error_num));
             break;
         }
@@ -312,7 +354,7 @@ function oc_install( ) {
 
         switch ($error_num) {
             case 1050:  return array('error' => __('There are tables with the same name in the database. Change the table prefix or the database and try again.'));
-            break;
+                break;
             default:    return array('error' => sprintf(__("Can't create the database structure. Error number: %s"), $error_num));
             break;
         }
@@ -343,10 +385,10 @@ function oc_install( ) {
 
 
     $required_files = array(
-            ABS_PATH . 'oc-includes/osclass/installer/basic_data.sql',
-            ABS_PATH . 'oc-includes/osclass/installer/pages.sql',
-            ABS_PATH . 'oc-content/languages/' . osc_current_admin_locale() . '/mail.sql',
-        );
+        ABS_PATH . 'oc-includes/osclass/installer/basic_data.sql',
+        ABS_PATH . 'oc-includes/osclass/installer/pages.sql',
+        ABS_PATH . 'oc-content/languages/' . osc_current_admin_locale() . '/mail.sql',
+    );
 
     $sql = '';
     foreach($required_files as $file) {
@@ -371,7 +413,7 @@ function oc_install( ) {
 
         switch ($error_num) {
             case 1471:  return array('error' => __("Can't insert basic configuration. This user has no privileges to 'INSERT' into the database."));
-            break;
+                break;
             default:    return array('error' => sprintf(__("Can't insert basic configuration. Error number: %s"), $error_num));
             break;
         }
@@ -464,17 +506,17 @@ function oc_install_example_data() {
     $successItem = $mItem->add();
 
     $successPageresult = Page::newInstance()->insert(
-            array(
-                's_internal_name' => $page['s_internal_name'],
-                'b_indelible' => 0,
-                's_meta' => json_encode('')
-            ),
-            array(
-                osc_current_admin_locale() => array(
-                    's_title' => $page['s_title'],
-                    's_text' => $page['s_text']
-                )
-            ));
+        array(
+            's_internal_name' => $page['s_internal_name'],
+            'b_indelible' => 0,
+            's_meta' => json_encode('')
+        ),
+        array(
+            osc_current_admin_locale() => array(
+                's_title' => $page['s_title'],
+                's_text' => $page['s_text']
+            )
+        ));
 
 }
 
@@ -611,9 +653,9 @@ function finish_installation( $password ) {
     $mPreference->insert (
         array(
             's_section' => 'osclass'
-            ,'s_name' => 'osclass_installed'
-            ,'s_value' => '1'
-            ,'e_type' => 'BOOLEAN'
+        ,'s_name' => 'osclass_installed'
+        ,'s_value' => '1'
+        ,'e_type' => 'BOOLEAN'
         )
     );
 
@@ -628,13 +670,13 @@ function finish_installation( $password ) {
 
 /* Menus */
 function display_database_config() {
-?>
-<form action="install.php" method="post">
-    <input type="hidden" name="step" value="3" />
-    <h2 class="target"><?php _e('Database information'); ?></h2>
-    <div class="form-table">
-        <table>
-            <tbody>
+    ?>
+    <form action="install.php" method="post">
+        <input type="hidden" name="step" value="3" />
+        <h2 class="target"><?php _e('Database information'); ?></h2>
+        <div class="form-table">
+            <table>
+                <tbody>
                 <tr>
                     <th align="left"><label for="dbhost"><?php _e('Host'); ?></label></th>
                     <td><input type="text" id="dbhost" name="dbhost" value="localhost" size="25" /></td>
@@ -652,7 +694,7 @@ function display_database_config() {
                 </tr>
                 <tr>
                     <th align="left"><label for="password"><?php _e('Password'); ?></label></th>
-                    <td><input type="password" id="password" name="password" value="" size="25" /></td>
+                    <td><input type="password" id="password" name="password" value="" size="25" autocomplete="off" /></td>
                     <td class="small"><?php _e('Your MySQL password'); ?></td>
                 </tr>
                 <tr>
@@ -660,30 +702,44 @@ function display_database_config() {
                     <td><input type="text" id="tableprefix" name="tableprefix" value="oc_" size="25" /></td>
                     <td class="small"><?php _e('If you want to run multiple Osclass installations in a single database, change this'); ?></td>
                 </tr>
-            </tbody>
-        </table>
-        <div id="advanced_install" class="shrink">
-            <div class="text">
-                <span><?php _e('Advanced'); ?></span>
+                </tbody>
+            </table>
+            <div id="advanced_install" class="shrink">
+                <div class="text">
+                    <span><?php _e('Advanced'); ?></span>
+                </div>
             </div>
-        </div>
-        <script type="text/javascript">
-            $(document).ready(function() {
-                $('#advanced_install').click(function() {
-                    $('#more-options').toggle();
-                    if( $('#advanced_install').attr('class') == 'shrink' ) {
-                        $('#advanced_install').removeClass('shrink');
-                        $('#advanced_install').addClass('expanded');
-                    } else {
-                        $('#advanced_install').addClass('shrink');
-                        $('#advanced_install').removeClass('expanded');
-                    }
+            <script type="text/javascript">
+                $(document).ready(function() {
+                    $('#advanced_install').click(function() {
+                        $('#more-options').toggle();
+                        if( $('#advanced_install').attr('class') == 'shrink' ) {
+                            $('#advanced_install').removeClass('shrink');
+                            $('#advanced_install').addClass('expanded');
+                        } else {
+                            $('#advanced_install').addClass('shrink');
+                            $('#advanced_install').removeClass('expanded');
+                        }
+                    });
+                    $('#createdb').on('click', function() {
+                        if($("#createdb").is(':checked')) {
+                            if ($("#admin_username").attr("value") == '') {
+                                $("#admin_username").attr("value", $("#username").attr("value"));
+                            };
+                            if ($("#admin_password").attr("value") == '') {
+                                $("#admin_password").attr("value", $("#password").attr("value"));
+                                $("#password_copied").show();
+                            };
+                        } else {
+                            $("#password_copied").hide();
+                        };
+                    });
+                    $("#password_copied").hide();
                 });
-            });
-        </script>
-        <div style="clear:both;"></div>
-        <table id="more-options" style="display:none;">
-            <tbody>
+            </script>
+            <div style="clear:both;"></div>
+            <table id="more-options" style="display:none;">
+                <tbody>
                 <tr>
                     <th></th>
                     <td><input type="checkbox" id="createdb" name="createdb" onclick="db_admin();" value="1" /><label for="createdb"><?php _e('Create DB'); ?></label></td>
@@ -696,18 +752,18 @@ function display_database_config() {
                 </tr>
                 <tr id="admin_password_row">
                     <th align="left"><label for="admin_password"><?php _e('DB admin password'); ?></label></th>
-                    <td><input type="password" id="admin_password" name="admin_password" value="" size="25" disabled="disabled" /></td>
+                    <td><input type="password" id="admin_password" name="admin_password" value="" size="25" disabled="disabled" autocomplete="off" /> <span id="password_copied"><?php _e('Password copied from above'); ?></span></td>
                     <td></td>
                 </tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="clear"></div>
-    <p class="margin20">
-        <input type="submit" class="button" name="submit" value="Next" />
-    </p>
-    <div class="clear"></div>
-</form>
+                </tbody>
+            </table>
+        </div>
+        <div class="clear"></div>
+        <p class="margin20">
+            <input type="submit" class="button" name="submit" value="Next" />
+        </p>
+        <div class="clear"></div>
+    </form>
 <?php
 }
 
@@ -718,7 +774,7 @@ function display_target() {
     $region_list = array();
 
     $country_ip = '';
-    if(preg_match('|([a-z]{2})-([A-Z]{2})|', @$_SERVER['HTTP_ACCEPT_LANGUAGE'], $match)) {
+    if(preg_match('|([a-z]{2})-([A-Z]{2})|', Params::getServerParam('HTTP_ACCEPT_LANGUAGE'), $match)) {
         $country_ip = $match[2];
         $region_list = osc_file_get_contents('http://geo.osclass.org/newgeo.services.php?action=regions&country='.$match[2]);
         $region_list = json_decode(substr($region_list, 1, strlen($region_list)-2), true);
@@ -729,13 +785,13 @@ function display_target() {
     }
 
 
-?>
-<form id="target_form" name="target_form" action="#" method="post" onsubmit="return false;">
-    <h2 class="target"><?php _e('Information needed'); ?></h2>
-    <div class="form-table">
-        <h2 class="title"><?php _e('Admin user'); ?></h2>
-        <table class="admin-user">
-            <tbody>
+    ?>
+    <form id="target_form" name="target_form" action="#" method="post" onsubmit="return false;">
+        <h2 class="target"><?php _e('Information needed'); ?></h2>
+        <div class="form-table">
+            <h2 class="title"><?php _e('Admin user'); ?></h2>
+            <table class="admin-user">
+                <tbody>
                 <tr>
                     <th><label for="admin_user"><?php _e('Username'); ?></label></th>
                     <td>
@@ -748,19 +804,19 @@ function display_target() {
                 <tr>
                     <th><label for="s_passwd"><?php _e('Password'); ?></label></th>
                     <td>
-                        <input size="25" class="password_test" name="s_passwd" id="s_passwd" type="password" value="" />
+                        <input size="25" class="password_test" name="s_passwd" id="s_passwd" type="password" value="" autocomplete="off" />
                     </td>
                     <td></td>
                 </tr>
-            </tbody>
-        </table>
-        <div class="admin-user">
-            <?php _e('A password will be automatically generated for you if you leave this blank.'); ?>
-            <img src="<?php echo get_absolute_url() ?>oc-includes/images/question.png" class="question-skip vtip" title="<?php echo osc_esc_html(__('You can modify username and password if you like, just change the input value.')); ?>" alt="" />
-        </div>
-        <h2 class="title"><?php _e('Contact information'); ?></h2>
-        <table class="contact-info">
-            <tbody>
+                </tbody>
+            </table>
+            <div class="admin-user">
+                <?php _e('A password will be automatically generated for you if you leave this blank.'); ?>
+                <img src="<?php echo get_absolute_url() ?>oc-includes/images/question.png" class="question-skip vtip" title="<?php echo osc_esc_html(__('You can modify username and password if you like, just change the input value.')); ?>" alt="" />
+            </div>
+            <h2 class="title"><?php _e('Contact information'); ?></h2>
+            <table class="contact-info">
+                <tbody>
                 <tr>
                     <th><label for="webtitle"><?php _e('Web title'); ?></label></th>
                     <td><input type="text" id="webtitle" name="webtitle" size="25" /></td>
@@ -771,74 +827,74 @@ function display_target() {
                     <td><input type="text" id="email" name="email" size="25" /></td>
                     <td><span id="email-error" class="error" style="display:none;"><?php _e('Put your e-mail here'); ?></span></td>
                 </tr>
-            </tbody>
-        </table>
-        <h2 class="title"><?php _e('Location'); ?></h2>
-        <p class="space-left-25 left no-bottom"><?php _e('Choose countries/cities where your target users are located'); ?></p>
-        <div id="location-question" class="left question">
-            <img class="vtip" src="<?php echo get_absolute_url(); ?>oc-includes/images/question.png" title="<?php echo osc_esc_html(__("Once you type a country, you'll be able to choose region and city as well. Therefore, the installation will be more specific.")); ?>" alt="" />
+                </tbody>
+            </table>
+            <h2 class="title"><?php _e('Location'); ?></h2>
+            <p class="space-left-25 left no-bottom"><?php _e('Choose countries/cities where your target users are located'); ?></p>
+            <div id="location-question" class="left question">
+                <img class="vtip" src="<?php echo get_absolute_url(); ?>oc-includes/images/question.png" title="<?php echo osc_esc_html(__("Once you type a country, you'll be able to choose region and city as well. Therefore, the installation will be more specific.")); ?>" alt="" />
+            </div>
+            <div class="clear"></div>
+            <div id="location">
+                <?php if(!$internet_error) { ?>
+                    <input type="hidden" id="skip-location-input" name="skip-location-input" value="0" />
+                    <input type="hidden" id="country-input" name="country-input" value="" />
+                    <input type="hidden" id="region-input" name="region-input" value="" />
+                    <input type="hidden" id="city-input" name="city-input" value="" />
+                    <div id="country-box">
+
+                        <select name="country_select" id="country_select" >
+                            <option value="skip"><?php _e("Skip location"); ?></option>
+                            <!-- <option value="all"><?php _e("International"); ?></option> -->
+                            <?php foreach($country_list as $c) { ?>
+                                <option value="<?php echo $c['code']; ?>" <?php if($c['code']==$country_ip) { echo 'selected="selected"'; }; ?>><?php echo $c['s_name']; ?></option>
+                            <?php }; ?>
+                        </select>
+
+                        <select name="region_select" id="region_select" style="display: none;">
+                            <option value="all"><?php _e("All regions"); ?></option>
+                        </select>
+
+                        <select name="city_select" id="city_select" style="display: none;">
+                            <option value="all"><?php _e("All cities"); ?></option>
+                        </select>
+
+                        <div id="no_region_text" aria-hidden="true" style="display: none;"><?php _e("There are no regions available for this country"); ?></div>
+
+                        <div id="no_city_text" aria-hidden="true" style="display: none;"><?php _e("There are no cities available for this region"); ?></div>
+
+
+                    </div>
+                <?php } else { ?>
+                    <div id="location-error">
+                        <?php _e('No internet connection. You can continue the installation and insert countries later.'); ?>
+                        <input type="hidden" id="skip-location-input" name="skip-location-input" value="1" />
+                    </div>
+                <?php }; ?>
+            </div>
         </div>
         <div class="clear"></div>
-        <div id="location">
-            <?php if(!$internet_error) { ?>
-            <input type="hidden" id="skip-location-input" name="skip-location-input" value="0" />
-            <input type="hidden" id="country-input" name="country-input" value="" />
-            <input type="hidden" id="region-input" name="region-input" value="" />
-            <input type="hidden" id="city-input" name="city-input" value="" />
-            <div id="country-box">
-
-                <select name="country_select" id="country_select" >
-                    <option value="skip"><?php _e("Skip location"); ?></option>
-                    <!-- <option value="all"><?php _e("International"); ?></option> -->
-                    <?php foreach($country_list as $c) { ?>
-                        <option value="<?php echo $c['code']; ?>" <?php if($c['code']==$country_ip) { echo 'selected="selected"'; }; ?>><?php echo $c['s_name']; ?></option>
-                    <?php }; ?>
-                </select>
-
-                <select name="region_select" id="region_select" style="display: none;">
-                    <option value="all"><?php _e("All regions"); ?></option>
-                </select>
-
-                <select name="city_select" id="city_select" style="display: none;">
-                    <option value="all"><?php _e("All cities"); ?></option>
-                </select>
-
-                <div id="no_region_text" aria-hidden="true" style="display: none;"><?php _e("There are no regions available for this country"); ?></div>
-
-                <div id="no_city_text" aria-hidden="true" style="display: none;"><?php _e("There are no cities available for this region"); ?></div>
-
-
-            </div>
-            <?php } else { ?>
-            <div id="location-error">
-                <?php _e('No internet connection. You can continue the installation and insert countries later.'); ?>
-                <input type="hidden" id="skip-location-input" name="skip-location-input" value="1" />
-            </div>
-            <?php }; ?>
+        <p class="margin20">
+            <a href="#" class="button" onclick="validate_form();">Next</a>
+        </p>
+        <div class="clear"></div>
+    </form>
+    <div id="lightbox" style="display:none;">
+        <div class="center">
+            <img src="<?php echo get_absolute_url(); ?>oc-includes/images/loading.gif" alt="<?php echo osc_esc_html(__("Loading...")); ?>" title="" />
         </div>
     </div>
-    <div class="clear"></div>
-    <p class="margin20">
-        <a href="#" class="button" onclick="validate_form();">Next</a>
-    </p>
-    <div class="clear"></div>
-</form>
-<div id="lightbox" style="display:none;">
-    <div class="center">
-        <img src="<?php echo get_absolute_url(); ?>oc-includes/images/loading.gif" alt="<?php echo osc_esc_html(__("Loading...")); ?>" title="" />
-    </div>
-</div>
 <?php
 }
 
 function display_database_error($error ,$step) {
-?>
-<h2 class="target"><?php _e('Error'); ?></h2>
-<p class="bottom space-left-10">
-    <?php echo $error['error']?>
-</p>
-<a href="<?php echo get_absolute_url(); ?>oc-includes/osclass/install.php?step=<?php echo $step; ?>" class="button"><?php _e('Go back'); ?></a>
-<div class="clear bottom"></div>
+    ?>
+    <h2 class="target"><?php _e('Error'); ?></h2>
+    <p class="bottom space-left-10">
+        <?php echo $error['error']?>
+    </p>
+    <a href="<?php echo get_absolute_url(); ?>oc-includes/osclass/install.php?step=<?php echo $step; ?>" class="button"><?php _e('Go back'); ?></a>
+    <div class="clear bottom"></div>
 <?php
 }
 
@@ -848,9 +904,9 @@ function ping_search_engines($bool){
         $mPreference->insert (
             array(
                 's_section' => 'osclass'
-                ,'s_name'   => 'ping_search_engines'
-                ,'s_value'  => '1'
-                ,'e_type'   => 'BOOLEAN'
+            ,'s_name'   => 'ping_search_engines'
+            ,'s_value'  => '1'
+            ,'e_type'   => 'BOOLEAN'
             )
         );
         // GOOGLE
@@ -863,17 +919,17 @@ function ping_search_engines($bool){
         $mPreference->insert (
             array(
                 's_section' => 'osclass'
-                ,'s_name'   => 'ping_search_engines'
-                ,'s_value'  => '0'
-                ,'e_type'   => 'BOOLEAN'
+            ,'s_name'   => 'ping_search_engines'
+            ,'s_value'  => '0'
+            ,'e_type'   => 'BOOLEAN'
             )
         );
     }
 }
 function display_finish($password) {
     $data = finish_installation( $password );
-?>
-        <?php if(Params::getParam('error_location') == 1) { ?>
+    ?>
+    <?php if(Params::getParam('error_location') == 1) { ?>
         <script type="text/javascript">
             setTimeout (function(){
                 $('.error-location').fadeOut('slow');
@@ -882,14 +938,14 @@ function display_finish($password) {
         <div class="error-location">
             <?php _e('The selected location could not been installed'); ?>
         </div>
-        <?php } ?>
-<h2 class="target"><?php _e('Congratulations!');?></h2>
-<p class="space-left-10"><?php _e("Osclass has been installed. Were you expecting more steps? Sorry to disappoint you!");?></p>
-<p class="space-left-10"><?php echo sprintf(__('An e-mail with the password for oc-admin has been sent to: %s'), $data['s_email']);?></p>
-<div style="clear:both;"></div>
-<div class="form-table finish">
-    <table>
-        <tbody>
+    <?php } ?>
+    <h2 class="target"><?php _e('Congratulations!');?></h2>
+    <p class="space-left-10"><?php _e("Osclass has been installed. Were you expecting more steps? Sorry to disappoint you!");?></p>
+    <p class="space-left-10"><?php echo sprintf(__('An e-mail with the password for oc-admin has been sent to: %s'), $data['s_email']);?></p>
+    <div style="clear:both;"></div>
+    <div class="form-table finish">
+        <table>
+            <tbody>
             <tr>
                 <th><span class="label-like"><?php _e('Username');?></span></th>
                 <td>
@@ -906,12 +962,12 @@ function display_finish($password) {
                     </div>
                 </td>
             </tr>
-        </tbody>
-    </table>
-</div>
-<p class="margin20">
-    <a target="_blank" href="<?php echo get_absolute_url() ?>oc-admin/index.php" class="button"><?php _e('Finish and go to the administration panel');?></a>
-</p>
+            </tbody>
+        </table>
+    </div>
+    <p class="margin20">
+        <a target="_blank" href="<?php echo get_absolute_url() ?>oc-admin/index.php" class="button"><?php _e('Finish and go to the administration panel');?></a>
+    </p>
 <?php
 }
 ?>

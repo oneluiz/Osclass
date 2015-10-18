@@ -1,26 +1,22 @@
 <?php
 
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-    /*
-     *      Osclass – software for creating and publishing online classified
-     *                           advertising platforms
-     *
-     *                        Copyright (C) 2012 OSCLASS
-     *
-     *       This program is free software: you can redistribute it and/or
-     *     modify it under the terms of the GNU Affero General Public License
-     *     as published by the Free Software Foundation, either version 3 of
-     *            the License, or (at your option) any later version.
-     *
-     *     This program is distributed in the hope that it will be useful, but
-     *         WITHOUT ANY WARRANTY; without even the implied warranty of
-     *        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     *             GNU Affero General Public License for more details.
-     *
-     *      You should have received a copy of the GNU Affero General Public
-     * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-     */
-
+    if(!defined('BCRYPT_COST')) { define('BCRYPT_COST', 15); };
 
     /**
     * Helper Security
@@ -44,7 +40,6 @@
 
         return $pass;
     }
-
 
     /**
      * Create a CSRF token to be placed in a form
@@ -133,7 +128,7 @@
      */
     function osc_is_banned($email = '', $ip = null) {
         if($ip==null) {
-            $ip = $_SERVER['REMOTE_ADDR'];
+            $ip = Params::getServerParam('REMOTE_ADDR');
         }
         $rules = BanRule::newInstance()->listAll();
         if(!osc_is_ip_banned($ip, $rules)) {
@@ -235,7 +230,6 @@
         return false;
     }
 
-
     /*
      * Verify an user's password
      *
@@ -251,7 +245,7 @@
 
         require_once LIB_PATH . 'Bcrypt.php';
         if(CRYPT_BLOWFISH==1) {
-            $bcrypt = new Bcrypt(15);
+            $bcrypt = new Bcrypt(BCRYPT_COST);
             return $bcrypt->verify($password, $hash)?true:(sha1($password)==$hash);
         }
         return (sha1($password)==$hash);
@@ -266,17 +260,124 @@
      */
     function osc_hash_password($password) {
         if(version_compare(PHP_VERSION, '5.3.7')>=0) {
-            $options = array('cost' => 15);
+            $options = array('cost' => BCRYPT_COST);
             return password_hash($password, PASSWORD_BCRYPT, $options);
         }
 
         require_once LIB_PATH . 'Bcrypt.php';
         if(CRYPT_BLOWFISH==1) {
-            $bcrypt = new Bcrypt(15);
+            $bcrypt = new Bcrypt(BCRYPT_COST);
             return $bcrypt->hash($password);
         }
         return sha1($password);
     }
 
+    function osc_encrypt_alert($alert) {
+        $string = osc_genRandomPassword(32) . $alert;
+        osc_set_alert_private_key(); // renew private key and
+        osc_set_alert_public_key();  // public key
+        $key = hash("sha256", osc_get_alert_private_key(), true);
+        if(function_exists('mcrypt_module_open')) {
+            $cipher = mcrypt_module_open(MCRYPT_RIJNDAEL_256, '', MCRYPT_MODE_CBC, '');
+            $cipherText = '';
+            if (mcrypt_generic_init($cipher, $key, $key) != -1) {
+                $cipherText = mcrypt_generic($cipher, $string);
+                mcrypt_generic_deinit($cipher);
+            }
+            return $cipherText;
+        };
 
-?>
+        while (strlen($string) % 32 != 0) {
+            $string .= "\0";
+        }
+        require_once LIB_PATH . 'phpseclib/Crypt/Rijndael.php';
+        $cipher = new Crypt_Rijndael(CRYPT_RIJNDAEL_MODE_CBC);
+        $cipher->disablePadding();
+        $cipher->setBlockLength(256);
+        $cipher->setKey($key);
+        $cipher->setIV($key);
+        return $cipher->encrypt($string);
+    }
+
+    function osc_decrypt_alert($string) {
+        $key = hash("sha256", osc_get_alert_private_key(), true);
+        if(function_exists('mcrypt_module_open')) {
+            $cipher = mcrypt_module_open(MCRYPT_RIJNDAEL_256, '', MCRYPT_MODE_CBC, '');
+            $cipherText = '';
+            if (mcrypt_generic_init($cipher, $key, $key) != -1) {
+                $cipherText = mdecrypt_generic($cipher, $string);
+                mcrypt_generic_deinit($cipher);
+            }
+            return trim(substr($cipherText, 32));
+        };
+        require_once LIB_PATH . 'phpseclib/Crypt/Rijndael.php';
+        $cipher = new Crypt_Rijndael(CRYPT_RIJNDAEL_MODE_CBC);
+        $cipher->disablePadding();
+        $cipher->setBlockLength(256);
+        $cipher->setKey($key);
+        $cipher->setIV($key);
+        return trim(substr($cipher->decrypt($string), 32));
+    }
+
+    function osc_set_alert_public_key() {
+        if(!View::newInstance()->_exists('alert_public_key')) {
+            Session::newInstance()->_set('alert_public_key', osc_random_string(32) );
+        }
+    }
+
+    function osc_get_alert_public_key() {
+        return Session::newInstance()->_get('alert_public_key');
+    }
+
+    function osc_set_alert_private_key() {
+        if(!View::newInstance()->_exists('alert_private_key')) {
+            Session::newInstance()->_set('alert_private_key', osc_random_string(32) );
+        }
+    }
+
+    function osc_get_alert_private_key() {
+        return Session::newInstance()->_get('alert_private_key');
+    }
+
+    function osc_random_string($length) {
+        $buffer = '';
+        $buffer_valid = false;
+        if (function_exists('mcrypt_create_iv') && !defined('PHALANGER')) {
+            $buffer = mcrypt_create_iv($length, MCRYPT_DEV_URANDOM);
+            if ($buffer) {
+                $buffer_valid = true;
+            }
+        }
+        if (!$buffer_valid && function_exists('openssl_random_pseudo_bytes')) {
+            $buffer = openssl_random_pseudo_bytes($length);
+            if ($buffer) {
+                $buffer_valid = true;
+            }
+        }
+        if (!$buffer_valid && is_readable('/dev/urandom')) {
+            $f = fopen('/dev/urandom', 'r');
+            $read = strlen($buffer);
+            while ($read < $length) {
+                $buffer .= fread($f, $length - $read);
+                $read = strlen($buffer);
+            }
+            fclose($f);
+            if ($read >= $length) {
+                $buffer_valid = true;
+            }
+        }
+        if (!$buffer_valid || strlen($buffer) < $length) {
+            $bl = strlen($buffer);
+            for ($i = 0; $i < $length; $i++) {
+                if ($i < $bl) {
+                    $buffer[$i] = $buffer[$i] ^ chr(mt_rand(0, 255));
+                } else {
+                    $buffer .= chr(mt_rand(0, 255));
+                }
+            }
+        }
+        if(!$buffer_valid) {
+            $buffer = osc_genRandomPassword(2*$length);
+        }
+        return substr(str_replace('+', '.', base64_encode($buffer)), 0, $length);
+    }

@@ -1,20 +1,19 @@
 <?php if ( ! defined('OC_ADMIN')) exit('Direct access is not allowed.');
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     osc_enqueue_script('tiny_mce');
 
@@ -59,52 +58,25 @@
         <script type="text/javascript">
             tinyMCE.init({
                 mode : "textareas",
-                theme : "advanced",
-                skin: "cirkuit",
                 width: "100%",
                 height: "440px",
                 language: 'en',
                 theme_advanced_toolbar_align : "left",
                 theme_advanced_toolbar_location : "top",
-                plugins : "adimage,advlink,media,contextmenu",
+                plugins : [
+                    "advlist autolink lists link image charmap preview anchor",
+                    "searchreplace visualblocks code fullscreen",
+                    "insertdatetime media table contextmenu paste"
+                ],
                 entity_encoding : "raw",
                 theme_advanced_buttons1_add : "forecolorpicker,fontsizeselect",
                 theme_advanced_buttons2_add: "media",
                 theme_advanced_buttons3: "",
                 theme_advanced_disable : "styleselect,anchor",
-                file_browser_callback : "ajaxfilemanager",
                 relative_urls : false,
                 remove_script_host : false,
                 convert_urls : false
             });
-
-            function ajaxfilemanager(field_name, url, type, win) {
-                var ajaxfilemanagerurl = "<?php echo osc_base_url(); ?>/oc-includes/osclass/assets/js/tiny_mce/plugins/ajaxfilemanager/ajaxfilemanager.php";
-                var view = 'detail';
-                switch (type) {
-                    case "image":
-                        view = 'thumbnail';
-                        break;
-                    case "media":
-                        break;
-                    case "flash":
-                        break;
-                    case "file":
-                        break;
-                    default:
-                        return false;
-                }
-                tinyMCE.activeEditor.windowManager.open({
-                    url: "<?php echo osc_base_url(); ?>/oc-includes/osclass/assets/js/tiny_mce/plugins/ajaxfilemanager/ajaxfilemanager.php?view=" + view,
-                    width: 782,
-                    height: 440,
-                    inline : "yes",
-                    close_previous : "no"
-                },{
-                    window : win,
-                    input : field_name
-                });
-            }
 
         </script>
         <?php
@@ -142,9 +114,10 @@
         <div class="input-description-wide">
             <?php printLocaleDescriptionPage($locales, $page); ?>
         </div>
-        <div>
-			<label><?php _e('Show a link in footer'); ?></label>
-			<?php PageForm::link_checkbox($page); ?>
+        <div class="form-controls">
+                <div class="form-label-checkbox">
+                <label><?php PageForm::link_checkbox($page); ?> <?php _e('Show a link in footer'); ?></label>
+                </div>
         </div>
         <div>
             <?php osc_run_hook('page_meta'); ?>

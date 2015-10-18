@@ -1,3 +1,104 @@
+Osclass 3.5.9 2015-10-16
+------------------------
+
+- Fixed typo
+- Fixed some URLs
+
+Osclass 3.5.8 2015-10-14
+------------------------
+
+- Fixed several vulnerabilities thanks to HP Fortify Open Review ( https://hpfod.com/open-source-review-project )
+- Minor bug fixes and improvements
+
+Osclass 3.5.6 2015-03-26
+------------------------
+- Fix typo
+
+Osclass 3.5.5 2015-03-23
+------------------------
+- Fix typo on SQL query
+
+Osclass 3.5.4 2015-03-23
+------------------------
+- Fixed two critical vulnerabilities thanks to Pedro Worcel ( http://www.security-assessment.com/ )
+
+Osclass 3.5.3 2014-12-15
+------------------------
+- Checking for updates is now down in background
+- Typo fix
+
+Osclass 3.5.2 2014-11-23
+------------------------
+- Fixed wrong market endpoint in upgrade-funcs
+
+Osclass 3.5.1 2014-11-18
+------------------------
+- Manage Users , added reset filter
+- Fixed issue at search page with gallery format and premium ads
+- Bender theme - Parent category link are clickable
+- Bender theme is now upgradable via market
+
+Osclass 3.5.0 2014-11-13
+------------------------
+- Higher limit for custom fields values.
+- Bug fixed, Manage locations, slugs not being generated
+- Added filter theme_url, change theme urls as you want
+- Add customizable class for pagination.
+- Added styles to Expired ads at Manage listings page.
+- Date format improvements at Manage users/listings page.
+- Fixed issues with Premium.php helper.
+- Ad management as a settings of Bender theme.
+- Connect / Disconnect from market.osclass.org
+- Market section, now show paid plugins and themes
+- My purchases (market page) download your paid plugins or themes
+- Market section, added search filters.
+- Several minor bugs fixed.
+- Several issues with Bender theme fixed.
+
+Osclass 3.4.3 2014-09-30
+------------------------
+- Fixed four critical vulnerabilities thanks to Egidio Romano ( http://karmainsecurity.com/ )
+- Fixed some issues with the thousand separator in prices
+- Fixed some issues with search urls creating a redirection loop
+- Minor bug fixes and improvements
+
+Osclass 3.4.2 2014-09-10
+------------------------
+- Fixed two vulnerabilities thanks to Robert & Onur from http://www.netsparker.com
+- Fixed some issues with the cache
+- Minor bug fixes and improvements
+
+Osclass 3.4.1 2014-08-04
+------------------------
+- Fixed some compatibility issues with PHP 5.2
+- Minor bug fixes and improvements
+
+Osclass 3.4.0 2014-08-04
+------------------------
+- Extensible cache support (memcache, APC,...)
+- User based subdomains
+- Emails filters with more variables added
+- Some sql optimizations (categories, users, premium)
+- UI fixes and improvements in admin
+- Imagemagick issues fixed
+- Child theme support
+- Minor bug fixes and improvements
+
+Osclass 3.3.2 2014-04-08
+------------------------
+- Changed license of Osclass to Apache License, Version 2.0, you could get a copy here http://www.apache.org/licenses/LICENSE-2.0
+
+Osclass 3.3.2 2013-12-17
+------------------------
+- Fixed issue #1239
+- Improved a little upgrade process and warning
+
+Osclass 3.3.1 2013-12-16
+------------------------
+- Fixed blurred watermark text
+- Fixed black background on images
+- Fixed error that makes impossible to install languages via market
+
 Osclass 3.3 2013-12-10
 ------------------------
 - Subdomains improved

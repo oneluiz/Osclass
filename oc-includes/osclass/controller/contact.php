@@ -1,21 +1,20 @@
 <?php if ( ! defined('ABS_PATH')) exit('ABS_PATH is not loaded. Direct access is not allowed.');
 
-    /**
-     * Osclass – software for creating and publishing online classified advertising platforms
-     *
-     * Copyright (C) 2012 OSCLASS
-     *
-     * This program is free software: you can redistribute it and/or modify it under the terms
-     * of the GNU Affero General Public License as published by the Free Software Foundation,
-     * either version 3 of the License, or (at your option) any later version.
-     *
-     * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-     * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-     * See the GNU Affero General Public License for more details.
-     *
-     * You should have received a copy of the GNU Affero General Public
-     * License along with this program. If not, see <http://www.gnu.org/licenses/>.
-     */
+/*
+ * Copyright 2014 Osclass
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
     class CWebContact extends BaseModel
     {
@@ -95,33 +94,69 @@ MESSAGE;
                                             'body'      => nl2br($message)
                                         );
 
+
+                                        $error = false;
                                         if( osc_contact_attachment() ) {
                                             $attachment   = Params::getFiles('attachment');
-                                            if(isset($attachment['tmp_name'])) {
+                                            if(isset($attachment['error']) && $attachment['error']==UPLOAD_ERR_OK) {
+                                                $mime_array = array(
+                                                    'text/php',
+                                                    'text/x-php',
+                                                    'application/php',
+                                                    'application/x-php',
+                                                    'application/x-httpd-php',
+                                                    'application/x-httpd-php-source',
+                                                    'application/x-javascript'
+                                                );
                                                 $resourceName = $attachment['name'];
                                                 $tmpName      = $attachment['tmp_name'];
                                                 $resourceType = $attachment['type'];
-                                                $path = osc_uploads_path() . time() . '_' . $resourceName;
-                                                if( !is_writable(osc_uploads_path()) ) {
-                                                    osc_add_flash_error_message( _m('There have been some errors sending the message'));
-                                                    $this->redirectTo( osc_contact_url() );
+
+                                                if(function_exists('mime_content_type')){
+                                                    $resourceType = mime_content_type($tmpName);
                                                 }
 
-                                                if( !move_uploaded_file($tmpName, $path) ) {
-                                                    unset($path);
+                                                if(function_exists('finfo_open')){
+                                                    $finfo = finfo_open(FILEINFO_MIME);
+                                                    $output = finfo_file($finfo, $tmpName);
+                                                    finfo_close($finfo);
+
+                                                    $output = explode("; ",$output);
+                                                    if ( is_array($output) ) {
+                                                        $output = $output[0];
+                                                    }
+                                                    $resourceType = $output;
                                                 }
+
+                                                // check mime file
+                                                if(!in_array($resourceType, $mime_array)) {
+                                                    $emailAttachment = array('path' => $tmpName, 'name' => $resourceName);
+                                                    $error = false;
+                                                } else {
+                                                    $error = true;
+                                                }
+                                                // --- check mime file
+                                            } else {
+                                                $error = true;
                                             }
                                         }
+                                        if(!$error) {
+                                            if( isset($emailAttachment) ) {
+                                                $params['attachment'] = $emailAttachment;
+                                            }
 
-                                        if( isset($path) ) {
-                                            $params['attachment'] = $path;
+                                            osc_run_hook('pre_contact_post', $params);
+
+                                            osc_sendMail(osc_apply_filter('contact_params', $params));
+
+                                            if( isset($tmpName) ) {
+                                                @unlink($tmpName);
+                                            }
+
+                                            osc_add_flash_ok_message( _m('Your email has been sent properly. Thank you for contacting us!') );
+                                        } else {
+                                            osc_add_flash_error_message( _m('The file you tried to upload does not have a valid extension') );
                                         }
-
-                                        osc_run_hook('pre_contact_post', $params);
-
-                                        osc_sendMail(osc_apply_filter('contact_params', $params));
-
-                                        osc_add_flash_ok_message( _m('Your email has been sent properly. Thank you for contacting us!') );
 
                                         $this->redirectTo( osc_contact_url() );
                 break;

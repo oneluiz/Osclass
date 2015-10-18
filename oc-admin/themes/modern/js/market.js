@@ -66,6 +66,11 @@ $(function(){
         return false;
     });
 
+    $("body").on("click", '.ui-dialog-content a.diag-buy-btn', function(e) {
+        e.stopPropagation();
+        window.location = theme.adminBaseUrl + '?page=market&action=buy&' + theme.CSRFToken + '&url=' + $(this).attr("data-code");
+    });
+
 
     $('.mk-item-parent').click(function(event){
         event.preventDefault();
@@ -130,7 +135,7 @@ $(function(){
                             screenshots = '<tr>'
                                 +'<td colspan="3"><h4>'+theme.langs.screenshots+'</h4>';
                                 for(i = 0; i < item.a_images.length; i++){
-                                    screenshots += '<a rel="image_group'+item.fk_i_market_id+'" href="'+item.a_images[i]['s_image']+'" class="screnshot"><img src="'+item.a_images[i]['s_thumbnail']+'" /></a>';
+                                    screenshots += '<a class="fancybox screenshot" data-fancybox-group="'+item.s_title+'" href="'+item.a_images[i]['s_image']+'" ><img src="'+item.a_images[i]['s_thumbnail']+'" /></a>';
                                     if(i == 2) break;
                                 }
                              screenshots += '</td></tr>';
@@ -164,6 +169,22 @@ $(function(){
                         date_mod += _day;
                     }
 
+                    if(item.b_paid==0 && item.s_buy_url!=undefined) {
+                        var actions_text = '<a class="diag-buy diag-buy-btn" data-code="'+item.s_buy_url+'" data-type="'+section+'">'+theme.langs.buy+' v.'+item.s_version+'</a>'
+                            +'<span class="block"><strong>'+theme.langs.requieres_version+'</strong> '+versions[0]+'</span>'
+                            +'<span class="block"><strong>'+theme.langs.compatible_with+'</strong> '+versions[(versions.length-1)]+'</span>'
+                            +'<span class="block"><strong>'+theme.langs.downloads+'</strong> '+item.i_total_downloads+'</span>'
+                            +'<span class="block"><strong>'+theme.langs.last_update+'</strong> '+date_mod+'</span>'
+                            +'<a href="#" data-code="'+item.s_buy_url+'" class="diag-buy-btn manual-buy">'+theme.langs.buy+'</a>';
+                    } else {
+                        var actions_text = '<a class="more" data-code="'+item.s_update_url+'" data-type="'+section+'">'+theme.langs.download+' v.'+item.s_version+'</a>'
+                            +'<span class="block"><strong>'+theme.langs.requieres_version+'</strong> '+versions[0]+'</span>'
+                            +'<span class="block"><strong>'+theme.langs.compatible_with+'</strong> '+versions[(versions.length-1)]+'</span>'
+                            +'<span class="block"><strong>'+theme.langs.downloads+'</strong> '+item.i_total_downloads+'</span>'
+                            +'<span class="block"><strong>'+theme.langs.last_update+'</strong> '+date_mod+'</span>'
+                            +'<a href="'+item.s_source_file+'" class="manual">'+theme.langs.download_manually+'</a>';
+                    }
+
                     print = '<div class="mk-item mk-item-'+section+'">'
                             +'<div class="banner" style="background-image:url('+banner+');">'+str_letter+'</div>'
                             +'<div class="mk-info">'
@@ -178,12 +199,7 @@ $(function(){
                                     +'<td class="spacer">'
                                     +'</td>'
                                     +'<td class="actions">'
-                                        +'<a class="more" data-code="'+item.s_update_url+'" data-type="'+section+'">'+theme.langs.download+' v.'+item.s_version+'</a>'
-                                        +'<span class="block"><strong>'+theme.langs.requieres_version+'</strong> '+versions[0]+'</span>'
-                                        +'<span class="block"><strong>'+theme.langs.compatible_with+'</strong> '+versions[(versions.length-1)]+'</span>'
-                                        +'<span class="block"><strong>'+theme.langs.downloads+'</strong> '+item.i_total_downloads+'</span>'
-                                        +'<span class="block"><strong>'+theme.langs.last_update+'</strong> '+date_mod+'</span>'
-                                        +'<a href="'+item.s_source_file+'" class="manual">'+theme.langs.download_manually+'</a>'
+                                        + actions_text
                                     +'</td>'
                                 +'</tr>'
                                 +screenshots
@@ -191,9 +207,9 @@ $(function(){
                             +'</div>'
                         +'</div>';
                     var $print = $(print);
-                    $print.find('.screnshot:last img').addClass('last');
+                    $print.find('.screenshot:last img').addClass('last');
 
-                    $print.find('a.screnshot').fancybox({
+                    $print.find('a.screenshot').fancybox({
                         openEffect : 'none',
                         closeEffect : 'none',
                         nextEffect : 'fade',
@@ -203,6 +219,11 @@ $(function(){
                             title : {
                             type : 'inside'
                             }
+                        },
+                        tpl: {
+                            prev: '<a class="fancybox-nav fancybox-prev"><span></span></a>',
+                            next: '<a class="fancybox-nav fancybox-next"><span></span></a>',
+                            closeBtn : '<a class="fancybox-item fancybox-close" href="javascript:;"></a>'
                         }
                     });
 
@@ -228,5 +249,9 @@ $(function(){
     $('.mk-item-parent .download-btn').bind('click', function(e) {
         e.stopPropagation();
         checkCompatibility($(this));
+    });
+    $('.mk-item-parent .buy-btn').bind('click', function(e) {
+        e.stopPropagation();
+        window.location = theme.adminBaseUrl+'?page=market&action=buy&'+theme.CSRFToken+'&url='+$(this).attr("data-code");
     });
 });
