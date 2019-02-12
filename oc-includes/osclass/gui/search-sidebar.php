@@ -18,7 +18,7 @@
      *      You should have received a copy of the GNU Affero General Public
      * License along with this program.  If not, see <http://www.gnu.org/licenses/>.
      */
-     $category = __get("category");
+     $category = (array) __get("category");
      if(!isset($category['pk_i_id']) ) {
          $category['pk_i_id'] = null;
      }
@@ -43,6 +43,7 @@
         <fieldset>
             <h3><?php _e('City', 'bender'); ?></h3>
             <div class="row">
+                <input class="input-text" type="hidden" id="sRegion" name="sRegion" value="<?php echo osc_esc_html(Params::getParam('sRegion')); ?>" />
                 <input class="input-text" type="text" id="sCity" name="sCity" value="<?php echo osc_esc_html(osc_search_city()); ?>" />
             </div>
         </fieldset>

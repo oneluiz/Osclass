@@ -36,6 +36,15 @@
             </select>
         </form>
     <?php } ?>
+
+    <?php if( osc_get_preference('sidebar-300x250', 'bender') != '') {?>
+    <!-- sidebar ad 350x250 -->
+    <div class="ads_300">
+        <?php echo osc_get_preference('sidebar-300x250', 'bender'); ?>
+    </div>
+    <!-- /sidebar ad 350x250 -->
+    <?php } ?>
+
     <div id="contact" class="widget-box form-container form-vertical">
         <h2><?php _e("Contact publisher", 'bender'); ?></h2>
         <?php if( osc_item_is_expired () ) { ?>
@@ -99,22 +108,7 @@
 
                 <div class="control-group">
                     <div class="controls">
-                        <?php osc_run_hook('item_contact_form', osc_item_id()); ?>
-                        <?php if( osc_recaptcha_public_key() ) { ?>
-                        <script type="text/javascript">
-                            var RecaptchaOptions = {
-                                theme : 'custom',
-                                custom_theme_widget: 'recaptcha_widget'
-                            };
-                        </script>
-                        <style type="text/css"> div#recaptcha_widget, div#recaptcha_image > img { width:280px; } </style>
-                        <div id="recaptcha_widget">
-                            <div id="recaptcha_image"><img /></div>
-                            <span class="recaptcha_only_if_image"><?php _e('Enter the words above','bender'); ?>:</span>
-                            <input type="text" id="recaptcha_response_field" name="recaptcha_response_field" />
-                            <div><a href="javascript:Recaptcha.showhelp()"><?php _e('Help', 'bender'); ?></a></div>
-                        </div>
-                        <?php } ?>
+                        <?php osc_run_hook('item_contact_form', osc_item_id()); ?> 
                         <?php osc_show_recaptcha(); ?>
                         <button type="submit" class="ui-button ui-button-middle ui-button-main"><?php _e("Send", 'bender');?></button>
                     </div>

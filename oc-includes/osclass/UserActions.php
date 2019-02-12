@@ -82,6 +82,12 @@
 
             $flash_error = osc_apply_filter('user_add_flash_error', $flash_error);
             if($flash_error!='') {
+                Session::newInstance()->_setForm('user_s_name', $input['s_name']);
+                Session::newInstance()->_setForm('user_s_email', $input['s_email']);
+                Session::newInstance()->_setForm('user_s_username', $input['s_username']);
+                $phone = ($input['s_phone_mobile'])? $input['s_phone_mobile'] : $input['s_phone_land'];
+                Session::newInstance()->_setForm('user_s_phone', $phone);
+
                 osc_run_hook('user_register_failed', $error);
                 return $flash_error;
             }
@@ -106,20 +112,9 @@
                 }
             }
 
-            Log::newInstance()->insertLog('user', 'add', $userId, $input['s_email'], $this->is_admin ? 'admin' : 'user', $this->is_admin ? osc_logged_admin_id() : $userId);
-
-            // update items with s_contact_email the same as new user email
-            $aItems = Item::newInstance()->findByEmail( $input['s_email'] );
-            foreach( $aItems as $aux ) {
-                if( Item::newInstance()->update(array('fk_i_user_id' => $userId, 's_contact_name' => $input['s_name']), array('pk_i_id' => $aux['pk_i_id']) ) ) {
-                    $this->manager->increaseNumItems($userId);
-                }
-            }
-            // update alerts user id with the same email
-            Alerts::newInstance()->update(array('fk_i_user_id' => $userId), array('s_email' => $input['s_email']));
+            Log::newInstance()->insertLog('user', $this->is_admin ? 'add' : 'register', $userId, $input['s_email'], $this->is_admin ? 'admin' : 'user', $this->is_admin ? osc_logged_admin_id() : $userId);
 
             $user = $this->manager->findByPrimaryKey($userId);
-
             if( osc_notify_new_user() && !$this->is_admin ) {
                 osc_run_hook('hook_email_admin_new_user', $user);
             }
@@ -132,6 +127,15 @@
                                  array('b_active' => '1')
                                 ,array('pk_i_id'  => $userId)
                 );
+
+                // update items with s_contact_email the same as new user email
+                $items_updated = Item::newInstance()->update(array('fk_i_user_id' => $userId, 's_contact_name' => $input['s_name']), array('s_contact_email' => $input['s_email']) );
+                if($items_updated!==false && $items_updated>0) {
+                    User::newInstance()->update('i_items = i_items + '. (int)$items_updated, array('pk_i_id' => $userId) );
+                }
+                // update alerts user id with the same email
+                Alerts::newInstance()->update(array('fk_i_user_id' => $userId), array('s_email' => $input['s_email']));
+
                 $success = 2;
             }
 
@@ -231,7 +235,7 @@
             $user = User::newInstance()->findByEmail( Params::getParam('s_email') );
             Session::newInstance()->_set( 'recover_time', time() );
 
-            if ( (osc_recaptcha_private_key() != '') ) {
+            if ( (osc_recaptcha_private_key() != '') && Session::newInstance()->_get('recover_captcha_not_set')!=1) {
                 if( !osc_check_recaptcha() ) {
                     return 2; // BREAK THE PROCESS, THE RECAPTCHA IS WRONG
                 }
@@ -259,8 +263,12 @@
             $input = array();
 
             if ( $is_add ) {
-                $input['s_secret']    = osc_genRandomPassword();
-                $input['dt_reg_date'] = date('Y-m-d H:i:s');
+                $date                    = date('Y-m-d H:i:s');
+                $input['dt_reg_date']    = $date;
+                $input['dt_mod_date']    = $date;
+                $input['dt_access_date'] = $date;
+                $input['s_secret']       = osc_genRandomPassword();
+                $input['s_access_ip']    = Params::getServerParam('REMOTE_ADDR');
             } else {
                 $input['dt_mod_date'] = date('Y-m-d H:i:s');
             }
@@ -358,6 +366,15 @@
                     $mItem->enable($item['pk_i_id']);
                 }
             }
+
+            // update items with s_contact_email the same as new user email
+            $items_updated = Item::newInstance()->update(array('fk_i_user_id' => $user_id, 's_contact_name' => $user['s_name']), array('s_contact_email' => $user['s_email']) );
+            if($items_updated!==false && $items_updated>0) {
+                User::newInstance()->update('i_items = i_items + '. (int)$items_updated, array('pk_i_id' => $user_id));
+            }
+            // update alerts user id with the same email
+            Alerts::newInstance()->update(array('fk_i_user_id' => $user_id), array('s_email' => $user['s_email']));
+
             osc_run_hook('activate_user', $user);
 
             return true;

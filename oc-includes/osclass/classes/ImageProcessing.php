@@ -16,12 +16,12 @@
  */
 
     /**
-     * This class represents a utility to load and resize images easily.
+     * This class represents a utility to load, resize, rotate and process images easily.
      */
-    class ImageResizer {
+    class ImageProcessing {
 
         public static function fromFile($imagePath) {
-            return new ImageResizer($imagePath);
+            return new ImageProcessing($imagePath);
         }
 
         private $im;
@@ -33,16 +33,40 @@
         private $_color;
         private $_width;
         private $_height;
+        private $_exif;
         private $_watermarked = false;
+        
+        private $_use_imagick = false;
 
 
         private function __construct($imagePath) {
-            if(!file_exists($imagePath)) { throw new Exception(sprintf(__("%s does not exist!"), $imagePath)); };
-            if(!is_readable($imagePath)) { throw new Exception(sprintf(__("%s is not readable!"), $imagePath)); };
-            if(filesize($imagePath)==0) { throw new Exception(sprintf(__("%s is corrupt or broken!"), $imagePath)); };
+            if(!file_exists($imagePath)) {
+                throw new Exception(sprintf(__("%s does not exist!"), $imagePath));
+            }
 
-            if(osc_use_imagick()) {
+            if(!is_readable($imagePath)) {
+                throw new Exception(sprintf(__("%s is not readable!"), $imagePath));
+            }
+
+            if(filesize($imagePath)==0) {
+                throw new Exception(sprintf(__("%s is corrupt or broken!"), $imagePath));
+            }
+
+            $this->image_info = @getimagesize($imagePath);
+            
+            if(extension_loaded('imagick') && osc_use_imagick()) {
+                $this->_use_imagick = true;
+            }
+            
+            if($this->_use_imagick) {
                 $this->im = new Imagick($imagePath);
+                // animated GIF set frame 0
+                if ($this->im->getNumberImages() > 1) {
+                    foreach($this->im as $frame) {
+                        $frame = $this->im;
+                        break;
+                    }
+                }
                 $geometry = $this->im->getImageGeometry();
                 $this->_width = $geometry['width'];
                 $this->_height = $geometry['height'];
@@ -51,9 +75,14 @@
                 $this->im = imagecreatefromstring($content);
                 $this->_width = imagesx($this->im);
                 $this->_height = imagesy($this->im);
+
+                $this->_exif = array();
+                if(@$this->image_info['mime']=='image/jpeg' && function_exists('exif_read_data')) {
+                    $this->_exif = @exif_read_data($imagePath);
+                }
+
             }
 
-            $this->image_info = @getimagesize($imagePath);
             switch (@$this->image_info['mime']) {
                 case 'image/gif':
                 case 'image/png':
@@ -63,7 +92,7 @@
                 default:
                     $this->ext = 'jpg';
                     $this->mime = 'image/jpeg';
-                    if(!osc_use_imagick()) {
+                    if(!$this->_use_imagick) {
                         $bg = imagecreatetruecolor($this->_width, $this->_height);
                         imagefill($bg, 0, 0, imagecolorallocatealpha($bg, 255, 255, 255, 127));
                         imagesavealpha($bg, true);
@@ -79,7 +108,7 @@
         }
 
         public function __destruct() {
-            if(osc_use_imagick()) {
+            if($this->_use_imagick) {
                 $this->im->destroy();
             } else {
                 imagedestroy($this->im);
@@ -88,6 +117,8 @@
 
         public function getExt() { return $this->ext; }
         public function getMime() { return $this->mime; }
+        public function getWidth() { return $this->_width; }
+        public function getHeight() { return $this->_height; }
 
         public function resizeTo($width, $height, $force_aspect = null, $upscale = true) {
             if($force_aspect==null) {
@@ -95,16 +126,28 @@
             }
 
             if(($this->_width/$this->_height)>=($width/$height)) {
-                if($upscale) { $newW = $width; } else { $newW = ($this->_width> $width)? $width : $this->_width; };
+                if($upscale) {
+                    $newW = $width;
+                } else {
+                    $newW = ($this->_width> $width) ? $width : $this->_width;
+                }
                 $newH = ceil($this->_height * ($newW / $this->_width));
-                if($force_aspect) { $height = $newH; }
+                if($force_aspect) {
+                    $height = $newH;
+                }
             } else {
-                if($upscale) { $newH = $height; } else { $newH = ($this->_height > $height)? $height : $this->_height; };
+                if($upscale) {
+                    $newH = $height;
+                } else {
+                    $newH = ($this->_height > $height)? $height : $this->_height;
+                }
                 $newW = ceil($this->_width* ($newH / $this->_height));
-                if($force_aspect) { $width = $newW; }
+                if($force_aspect) {
+                    $width = $newW;
+                }
             }
 
-            if(osc_use_imagick()) {
+            if($this->_use_imagick) {
                 $bg = new Imagick();
                 if($this->ext=='jpg') {
                     $bg->newImage($width, $height, 'white');
@@ -130,10 +173,19 @@
         }
 
         public function saveToFile($imagePath, $ext = null) {
-            if(file_exists($imagePath) && !is_writable($imagePath)) { throw new Exception("$imagePath is not writable!"); };
-            if($ext==null) { $ext = $this->ext; };
-            if($ext!='png' && $ext!='gif') { $ext = 'jpeg'; };
-            if(osc_use_imagick()) {
+            if(file_exists($imagePath) && !is_writable($imagePath)) {
+                throw new Exception("$imagePath is not writable!");
+            }
+
+            if($ext==null) {
+                $ext = $this->ext;
+            }
+
+            if($ext!='png' && $ext!='gif') {
+                $ext = 'jpeg';
+            }
+
+            if($this->_use_imagick) {
                 if($ext=='jpeg' && ($this->ext!='jpeg' && $this->ext!='jpg')) {
                     $bg = new Imagick();
                     $bg->newImage($this->_width, $this->_height, 'white');
@@ -142,6 +194,7 @@
                     $this->im = $bg;
                     $this->ext = 'jpeg';
                 }
+                $this->im->setImageDepth(8);
                 $this->im->setImageFileName($imagePath);
                 $this->im->setImageFormat($ext);
                 $this->im->writeImage($imagePath);
@@ -157,40 +210,45 @@
                         }
                         imagejpeg($this->im, $imagePath);
                         break;
-                }               
+                }
             }
         }
 
         public function autoRotate() {
-            if(osc_use_imagick()) {
+            if($this->_use_imagick) {
                 switch($this->im->getImageOrientation()) {
-                    case 1:
+                    case imagick::ORIENTATION_TOPRIGHT:
+                        $this->im->flopImage();
+                        break;
+
+                    case imagick::ORIENTATION_BOTTOMRIGHT:
+                        $this->im->rotateimage(new ImagickPixel('none'), 180); // rotate 180 degrees
+                        break;
+
+                    case imagick::ORIENTATION_BOTTOMLEFT:
+                        $this->im->flopImage();
+                        $this->im->rotateImage(new ImagickPixel('none'), 180);
+                        break;
+
+                    case imagick::ORIENTATION_LEFTTOP:
+                        $this->im->flopImage();
+                        $this->im->rotateImage(new ImagickPixel('none'), -90);
+                        break;
+
+                    case imagick::ORIENTATION_RIGHTTOP:
+                        $this->im->rotateimage(new ImagickPixel('none'), 90); // rotate 90 degrees CW
+                        break;
+
+                    case imagick::ORIENTATION_RIGHTBOTTOM:
+                        $this->im->flopImage();
+                        $this->im->rotateImage(new ImagickPixel('none'), 90);
+                        break;
+
+                    case imagick::ORIENTATION_LEFTBOTTOM:
+                        $this->im->rotateimage(new ImagickPixel('none'), -90); // rotate 90 degrees CCW
+                        break;
                     default:
                         // DO NOTHING, THE IMAGE IS OK OR WE DON'T KNOW IF IT'S ROTATED
-                        break;
-                    case 2:
-                        $this->im->flipImage();
-                        break;
-                    case 3:
-                        $this->im->rotateImage(new ImagickPixel('none'), 180);
-                        break;
-                    case 4:
-                        $this->im->flipImage();
-                        $this->im->rotateImage(new ImagickPixel('none'), 180);
-                        break;
-                    case 5:
-                        $this->im->flipImage();
-                        $this->im->rotateImage(new ImagickPixel('none'), 90);
-                        break;
-                    case 6:
-                        $this->im->rotateImage(new ImagickPixel('none'), 90);
-                        break;
-                    case 7:
-                        $this->im->flipImage();
-                        $this->im->rotateImage(new ImagickPixel('none'), 270);
-                        break;
-                    case 8:
-                        $this->im->rotateImage(new ImagickPixel('none'), 270);
                         break;
                 }
             } else {
@@ -201,30 +259,44 @@
                             // DO NOTHING, THE IMAGE IS OK OR WE DON'T KNOW IF IT'S ROTATED
                             break;
                         case 2:
-                            $this->im = imageflip($this->im, IMG_FLIP_HORIZONTAL);
+                            imageflip($this->im, IMG_FLIP_HORIZONTAL);
                             break;
                         case 3:
                             $this->im = imagerotate($this->im, 180, 0);
                             break;
                         case 4:
                             $this->im = imagerotate($this->im, 180, 0);
-                            $this->im = imageflip($this->im, IMG_FLIP_HORIZONTAL);
+                            imageflip($this->im, IMG_FLIP_HORIZONTAL);
                             break;
                         case 5:
-                            $this->im = imagerotate($this->im, 90, 0);
-                            $this->im = imageflip($this->im, IMG_FLIP_HORIZONTAL);
+                            $this->im = imagerotate($this->im, 270, 0);
+                            imageflip($this->im, IMG_FLIP_HORIZONTAL);
+                            $aux = $this->_height;
+                            $this->_height = $this->_width;
+                            $this->_width = $aux;
                             break;
                         case 6:
-                            $this->im = imagerotate($this->im, 90, 0);
+                            $this->im = imagerotate($this->im, -90, 0);
+                            $aux = $this->_height;
+                            $this->_height = $this->_width;
+                            $this->_width = $aux;
                             break;
                         case 7:
-                            $this->im = imagerotate($this->im, 270, 0);
-                            $this->im = imageflip($this->im, IMG_FLIP_HORIZONTAL);
+                            $this->im = imagerotate($this->im, 90, 0);
+                            imageflip($this->im, IMG_FLIP_HORIZONTAL);
+                            $aux = $this->_height;
+                            $this->_height = $this->_width;
+                            $this->_width = $aux;
                             break;
                         case 8:
-                            $this->im = imagerotate($this->im, 270, 0);
+                            $this->im = imagerotate($this->im, 90, 0);
+                            $aux = $this->_height;
+                            $this->_height = $this->_width;
+                            $this->_width = $aux;
                             break;
                     }
+                    $this->_exif['Orientation'] = 1;
+
                 }
             }
             return $this;
@@ -233,7 +305,7 @@
         public function show() {
             header('Content-Disposition: Attachment;filename=image.'.$this->ext);
             header('Content-type: '.$this->mime);
-            if(osc_use_imagick()) {
+            if($this->_use_imagick) {
             } else {
                 switch ($this->ext) {
                     case 'gif':
@@ -247,14 +319,16 @@
             }
         }
 
-        public function doWatermarkText($text, $color = 'ff0000') {
+        public function doWatermarkText($text, $color = 'ff0000', $fontsize = '30') {
             $this->_watermarked = true;
             $this->_font = osc_apply_filter('watermark_font_path', LIB_PATH . "osclass/assets/fonts/Arial.ttf");
-            if(osc_use_imagick()) {
+            $text = osc_apply_filter('watermark_text_value', $text);
+            $fontsize = osc_apply_filter('watermark_font_size', $fontsize);
+            if($this->_use_imagick) {
                 $draw = new ImagickDraw();
                 $draw->setFillColor("#".$color);
                 $draw->setFont($this->_font);
-                $draw->setFontSize( 30 );
+                $draw->setFontSize( $fontsize );
                 $metrics = $this->im->queryFontMetrics($draw, $text);
                 switch(osc_watermark_place()) {
                     case 'tl':
@@ -370,7 +444,7 @@
         {
             $this->_watermarked = true;
             $path_watermark = osc_uploads_path() . 'watermark.png';
-            if(osc_use_imagick()) {
+            if($this->_use_imagick) {
                 $wm = new Imagick($path_watermark);
                 $wgeo = $wm->getImageGeometry();
 

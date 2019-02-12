@@ -32,6 +32,7 @@
 
         public function __construct()
         {
+            parent::__construct();
             osc_add_filter('datatable_listing_class', array(&$this, 'row_class'));
         }
 
@@ -225,7 +226,7 @@
                         $title .= '...';
                     }
 
-                    //icon open add new window
+                    // icon open add new window
                     $title .= '<span class="icon-new-window"></span>';
 
                     // Options of each row
@@ -397,7 +398,6 @@
             $no_user_email  = '';
             // get & set values
             foreach($_get as $k => $v) {
-
                 if($k == 'sSearch' && $v != '') {
                     $this->mSearch->addPattern($v);
                     $this->withFilters = true;
@@ -413,8 +413,6 @@
                     $this->mSearch->addItemId($v);
                     $this->withFilters = true;
                 }
-
-                // si hay id mejor ...
                 if($k == 'countryId' && $v != '') {
                     $this->mSearch->addCountry($v);
                     $this->withFilters = true;
@@ -427,7 +425,6 @@
                     $this->mSearch->addCity($v);
                     $this->withFilters = true;
                 }
-
                 if($k == 'country' && $v != '') {
                     $this->mSearch->addCountry($v);
                     $this->withFilters = true;
@@ -441,7 +438,6 @@
                     $this->mSearch->addCity($v);
                     $this->withFilters = true;
                 }
-
                 if($k == 'catId' && $v != '') {
                     $this->mSearch->addCategory($v);
                     $this->withFilters = true;
@@ -467,7 +463,7 @@
                 }
             }
 
-            // add no registred user email if userId == '' and $no_user_email != ''
+            // add no registered user email if userId == '' and $no_user_email != ''
             if($no_user_email != '' && !$withUserId) {
                 $this->mSearch->addContactEmail($no_user_email);
                 $this->withFilters = true;

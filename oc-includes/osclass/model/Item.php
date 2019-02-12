@@ -268,7 +268,7 @@
 
         /**
          * Count all items, or all items belong to a category id, can be filtered
-         * by $active  ['ACTIVE'|'INACTIVE'|'SPAM']
+         * by $options  ['ACTIVE|INACTIVE|ENABLED|DISABLED|SPAM|NOTSPAM|EXPIRED|NOTEXPIRED|PREMIUM|TODAY']
          *
          * @access public
          * @since unknown
@@ -296,7 +296,7 @@
                     case 'INACTIVE':
                         $this->dao->where('i.b_active', 0);
                         break;
-                    case 'ENABLE':
+                    case 'ENABLED':
                         $this->dao->where('i.b_enabled', 1);
                         break;
                     case 'DISABLED':
@@ -305,11 +305,17 @@
                     case 'SPAM':
                         $this->dao->where('i.b_spam', 1);
                         break;
+                    case 'NOTSPAM':
+                        $this->dao->where('i.b_spam', 0);
+                        break;
                     case 'EXPIRED':
                         $this->dao->where( '( i.b_premium = 0 && i.dt_expiration < \'' . date('Y-m-d H:i:s') .'\' )' );
                         break;
                     case 'NOTEXPIRED':
                         $this->dao->where( '( i.b_premium = 1 || i.dt_expiration >= \'' . date('Y-m-d H:i:s') .'\' )' );
+                        break;
+                    case 'PREMIUM':
+                        $this->dao->where('i.b_premium', 1);
                         break;
                     case 'TODAY':
                         $this->dao->where('DATEDIFF(\''.date('Y-m-d H:i:s').'\', i.dt_pub_date) < 1');
@@ -782,7 +788,7 @@
             if($result!==false) {
                 $item   = $result->row();
                 $expired_old = osc_isExpired($item['dt_expiration']);
-                if(preg_match('|^([0-9]+)$|', $expiration_time, $match)) {
+                if(ctype_digit($expiration_time)) {
                     if($expiration_time > 0) {
                         $sql =  sprintf("UPDATE %s SET dt_expiration = ", $this->getTableName());
                         $sql .= sprintf(' date_add(%s.dt_pub_date, INTERVAL %d DAY) ', $this->getTableName(), $expiration_time);
@@ -958,7 +964,7 @@
                 CityStats::newInstance()->decreaseNumItems($item['fk_i_city_id']);
             }
 
-            $this->deleteResourcesFromHD($id);
+            ItemActions::deleteResourcesFromHD($id, OC_ADMIN);
 
             $this->dao->delete(DB_TABLE_PREFIX.'t_item_description', "fk_i_item_id = $id");
             $this->dao->delete(DB_TABLE_PREFIX.'t_item_comment' , "fk_i_item_id = $id");
@@ -971,26 +977,6 @@
 
             $res = parent::deleteByPrimaryKey($id);
             return $res;
-        }
-
-        /**
-         * Delete resources by primary key
-         *
-         * @access public
-         * @since 3.1.1
-         * @param int $id item id
-         * @return bool
-         */
-        public function deleteResourcesFromHD( $id )
-        {
-            $resources = ItemResource::newInstance()->getAllResourcesFromItem($id);
-            Log::newInstance()->insertLog('Item', 'deleteResourcesFromHD', $id, $id, OC_ADMIN?'admin':'user', OC_ADMIN?osc_logged_admin_id():osc_logged_user_id());
-            $log_ids = '';
-            foreach($resources as $resource) {
-                osc_deleteResource($resource['pk_i_id'], OC_ADMIN);
-                $log_ids .= $resource['pk_i_id'].",";
-            }
-            Log::newInstance()->insertLog('Item', 'deleteResourcesFromHD', $id, substr($log_ids,0, 250), OC_ADMIN?'admin':'user', OC_ADMIN?osc_logged_admin_id():osc_logged_user_id());
         }
 
         /**
@@ -1231,6 +1217,7 @@
 //                $this->dao->where(DB_TABLE_PREFIX.'t_item_stats.fk_i_item_id', $item['pk_i_id']);
                 $this->dao->where('s.fk_i_item_id', $item['pk_i_id']);
                 $this->dao->where('cd.fk_i_category_id', $item['fk_i_category_id']);
+                $this->dao->where('cd.fk_c_locale_code', $prefLocale);
                 // group by item_id
                 $this->dao->groupBy('fk_i_item_id');
 

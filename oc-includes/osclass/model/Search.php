@@ -62,6 +62,7 @@
 
         private $user_ids;
         private $itemId;
+        private $userTableLoaded;
 
         private static $instance;
 
@@ -90,11 +91,12 @@
             $this->withNoUserEmail  = false;
             $this->onlyPremium      = false;
 
-            $this->price_min = null;
-            $this->price_max = null;
+            $this->price_min        = null;
+            $this->price_max        = null;
 
-            $this->user_ids  = null;
-            $this->itemId    = null;
+            $this->user_ids         = null;
+            $this->itemId           = null;
+            $this->userTableLoaded  = false;
 
             $this->city_areas       = array();
             $this->cities           = array();
@@ -506,8 +508,8 @@
          */
         public function priceRange( $price_min = 0, $price_max = 0)
         {
-            $this->price_min = 1000000*$price_min;
-            $this->price_max = 1000000*$price_max;
+            $this->price_min = 1000000*((int)$price_min);
+            $this->price_max = 1000000*((int)$price_max);
         }
 
         private function _priceRange()
@@ -642,7 +644,7 @@
 
         private function _fromUser()
         {
-            $this->dao->from(sprintf('%st_user',DB_TABLE_PREFIX));
+            $this->_loadUserTable();
             $this->dao->where(sprintf('%st_user.pk_i_id = %st_item.fk_i_user_id',DB_TABLE_PREFIX,DB_TABLE_PREFIX));
 
             if(is_array($this->user_ids)) {
@@ -651,6 +653,27 @@
                 $this->dao->where(sprintf("%st_item.fk_i_user_id = %d ", DB_TABLE_PREFIX, $this->user_ids));
             }
         }
+
+        public function notFromUser($id)
+        {
+            $this->_loadUserTable();
+
+            $this->dao->where(sprintf("((%st_user.pk_i_id = %st_item.fk_i_user_id AND %st_item.fk_i_user_id != %d) || %st_item.fk_i_user_id IS NULL) ",
+                DB_TABLE_PREFIX,
+                DB_TABLE_PREFIX,
+                DB_TABLE_PREFIX,
+                $id,
+                DB_TABLE_PREFIX));
+        }
+
+        private function _loadUserTable()
+        {
+            if(!$this->userTableLoaded){
+                $this->dao->from(sprintf('%st_user',DB_TABLE_PREFIX));
+                $this->userTableLoaded = true;
+            }
+        }
+
 
         public function addItemId($id)
         {
@@ -788,6 +811,8 @@
          */
         private function _makeSQLPremium($num = 2)
         {
+            $arrayConditions    = $this->_conditions();
+            
             if ($this->withPattern ) {
                 // sub select for JOIN ----------------------
                 $this->dao->select('distinct d.fk_i_item_id');

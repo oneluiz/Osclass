@@ -270,12 +270,23 @@
     }
 
     /**
-     * Gets formated price of current item
+     * Gets formatted price of current item
+     *
+     * @return string
+     */
+    function osc_item_formatted_price() {
+        return (string) osc_format_price( osc_item_price() );
+    }
+
+    /**
+     * DEPRECATED: incorrect spelling of "formatted." Kept for legacy purposes
+     *
+     * Calls osc_item_formatted_price
      *
      * @return string
      */
     function osc_item_formated_price() {
-        return (string) osc_format_price( osc_item_price() );
+      return osc_item_formatted_price();
     }
 
     /**
@@ -1228,6 +1239,8 @@
             } else {
                 return '';
             }
+        } else if($meta['e_type']=="DROPDOWN" || $meta['e_type']=="RADIO") {
+            return osc_field(osc_item_meta(), 's_value', '');
         } else {
             return nl2br(htmlentities(osc_field(osc_item_meta(), 's_value', ''), ENT_COMPAT, "UTF-8"));
         }
@@ -1356,6 +1369,9 @@
             switch($key) {
                 case 'id':
                     $mSearch->addItemId($value);
+                    break;
+                case 'pattern':
+                    $mSearch->addPattern($value);
                     break;
                 case 'author':
                     $tmp = explode(",", $value);

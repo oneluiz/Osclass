@@ -152,7 +152,8 @@ function meta_title() {
         break;
         case('login'):
             switch ($section) {
-                case('recover'): $text = __('Recover your password');
+                case('recover'): $text = __('Recover your password'); break;
+                case('forgot'):  $text = __('Recover my password'); break;
                 default:         $text = __('Login');
             }
         break;
@@ -169,11 +170,13 @@ function meta_title() {
                 case('change_email'):    $text = __('Change my email'); break;
                 case('change_username'): $text = __('Change my username'); break;
                 case('change_password'): $text = __('Change my password'); break;
-                case('forgot'):          $text = __('Recover my password'); break;
             }
         break;
         case('contact'):
             $text = __('Contact');
+        break;
+        case('custom'):
+            $text = Rewrite::newInstance()->get_title();
         break;
         default:
             $text = osc_page_title();
@@ -338,7 +341,7 @@ function osc_footer_link_url($f = null) {
     }
     $params = array();
     $tmp = osc_search_category_id();
-    if( !empty($tmp) ) {
+    if( isset($tmp) ) {
         $params['sCategory'] = $f['fk_i_category_id'];
     }
 
@@ -495,7 +498,7 @@ function osc_check_plugins_update( $force = false )
     $total = getPreference('plugins_update_count');
     if($force) {
         return _osc_check_plugins_update();
-    } else if((time() - osc_plugins_last_version_check()) > (24 * 3600)) {
+    } else if((time() - (int)osc_plugins_last_version_check()) > (24 * 3600)) {
         osc_add_hook('admin_footer', 'check_plugins_admin_footer');
     }
     return $total;
@@ -548,7 +551,7 @@ function osc_check_themes_update( $force = false )
     $total = getPreference('themes_update_count');
     if($force) {
         return _osc_check_themes_update();
-    } else if((time() - osc_themes_last_version_check()) > (24 * 3600)) {
+    } else if((time() - (int)osc_themes_last_version_check()) > (24 * 3600)) {
         osc_add_hook('admin_footer', 'check_themes_admin_footer');
     }
     return $total;
@@ -599,7 +602,7 @@ function osc_check_languages_update( $force = false ) {
     $total = getPreference('languages_update_count');
     if($force) {
         return _osc_check_languages_update();
-    } else if((time() - osc_languages_last_version_check()) > (24 * 3600)) {
+    } else if((time() - (int)osc_languages_last_version_check()) > (24 * 3600)) {
         osc_add_hook('admin_footer', 'check_languages_admin_footer');
     }
     return $total;
@@ -640,6 +643,29 @@ function osc_admin_toolbar_update_languages($force = false)
                           'href'  => osc_admin_base_url(true) . "?page=languages",
                           'meta'  => array('class' => 'action-btn action-btn-black')
                     ) );
+        }
+    }
+}
+
+function osc_check_market_connect()
+{
+    return (getPreference('marketAPIConnect')=='') ? false : true;
+}
+
+
+function osc_admin_toolbar_market_connect() {
+
+    if( !osc_is_moderator() ) {
+        $connected = osc_check_market_connect();
+        AdminToolbar::newInstance()->remove_menu('market_connect');
+
+        if(!$connected) {
+            AdminToolbar::newInstance()->add_menu(
+                array('id'    => 'market_connect',
+                    'title' => __('Connect Market'),
+                    'href'  => osc_admin_base_url(true) . "?page=market&open_market_connect=true",
+                    'meta'  => array('class' => 'action-btn', 'style' => 'color:black;')
+                ) );
         }
     }
 }

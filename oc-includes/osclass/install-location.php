@@ -45,6 +45,10 @@ $result = basic_info();
 $json_message['email_status']   = $result['email_status'];
 $json_message['password']       = $result['s_password'];
 
+// create market.osclass.org account
+if(Params::getParam('createmarketaccount')!='' && Params::getParam('createmarketaccount')==1) {
+    create_market_account();
+}
 
 if($_POST['skip-location-input']==0 && $_POST['country-input']!='skip') {
     $msg = install_locations();
@@ -52,6 +56,16 @@ if($_POST['skip-location-input']==0 && $_POST['country-input']!='skip') {
 }
 
 echo json_encode($json_message);
+
+function create_market_account() {
+    $url = osc_market_url() . 'create_account/';
+    $json = osc_file_get_contents(
+        $url
+        , array(
+            's_email' => Params::getParam('email')
+        )
+    );
+}
 
 function basic_info() {
     require_once LIB_PATH . 'osclass/model/Admin.php';
@@ -152,7 +166,7 @@ function install_locations ( ) {
         $sql = 'action=country&term=all';
     }
 
-    $data_sql = osc_file_get_contents('http://geo.osclass.org/newgeo.download.php?'.$sql.'&install=true');
+    $data_sql = osc_file_get_contents('https://geo.osclass.org/newgeo.download.php?'.$sql.'&install=true');
 
     $conn = DBConnectionClass::newInstance();
     $c_db = $conn->getOsclassDb();

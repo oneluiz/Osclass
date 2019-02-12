@@ -104,7 +104,7 @@ FB;
         }
 
         static public function options_input_text($field = null) {
-            parent::generic_input_text("s_options", (isset($field) && isset($field["s_options"])) ? $field["s_options"] : "", null, false);
+            parent::generic_input_text("s_options", (isset($field) && isset($field["s_options"])) ? html_entity_decode($field["s_options"]) : "", null, false);
             return true;
         }
 
@@ -150,8 +150,9 @@ FB;
                             $field['s_value']   = $temp;
                         }
                     } else {
-                        $temp['from']   = Params::getParam('meta['.$field['pk_i_id'].'][from]');
-                        $temp['to']     = Params::getParam('meta['.$field['pk_i_id'].'][to]');
+                        $_meta = Params::getParam('meta');
+                        $temp['from']   = @(int)$_meta[$field['pk_i_id']]['from'];
+                        $temp['to']     = @(int)$_meta[$field['pk_i_id']]['to'];
                         $field['s_value'] = $temp;
                     }
                 }
@@ -171,8 +172,10 @@ FB;
                         echo '<h6>'.$field['s_name'].'</h6>';
                         echo '<input id="meta_'.$field['s_slug'].'" type="text" name="meta['.$field['pk_i_id'].']" value="' . osc_esc_html((isset($field) && isset($field["s_value"])) ? $field["s_value"] : "") . '" />';
                     } else {
+			$field_textarea_value = (isset($field["s_value"])) ? $field["s_value"] : '';
+			$field_textarea_value = osc_apply_filter('osc_item_edit_meta_textarea_value_filter', $field_textarea_value, $field);
                         echo '<label for="meta_'.$field['s_slug'].'">'.$field['s_name'].': </label>';
-                        echo '<textarea id="meta_' . $field['s_slug'] . '" name="meta['.$field['pk_i_id'].']" rows="10">' . ((isset($field) && isset($field["s_value"])) ? $field["s_value"] : "") . '</textarea>';
+                        echo '<textarea id="meta_' . $field['s_slug'] . '" name="meta['.$field['pk_i_id'].']" rows="10">' . ((isset($field) && isset($field_textarea_value)) ? $field_textarea_value : "") . '</textarea>';
                     }
                 } else if($field['e_type']=="DROPDOWN") {
                     if($search) {
@@ -200,12 +203,9 @@ FB;
                         if(isset($field) && isset($field['s_options'])) {
                             $options = explode(",", $field['s_options']);
                             if(count($options)>0) {
-                                echo '<select name="meta['.$field['pk_i_id'].']" id="meta_' . $field['s_slug'] . '">';
-                                echo '<option value=""></option>';
-                                foreach($options as $option) {
-                                    echo '<option value="'.osc_esc_html($option).'"'.($field['s_value']==$option?' selected="selected"':'').'>'.$option.'</option>';
+                                foreach($options as $key => $option) {
+                                    echo '<label for="meta_' . $field['s_slug'] . '_'.$key.'"><input type="radio" name="meta['.$field['pk_i_id'].']" id="meta_' . $field['s_slug'] . '_'.$key.'" value="'.osc_esc_html($option).'"'.($field['s_value']==$option?' checked="checked"':'').' />'.$option.'</label><br/>';
                                 }
-                                echo '</select>';
                             }
                         }
                     } else {
@@ -290,6 +290,8 @@ FB;
                         echo '<div class="row two_input">';
                     } else if($field['e_type']=='CHECKBOX') {
                         echo '<div class="row checkbox">';
+                    } else if($field['e_type']=='RADIO') {
+                        echo '<div class="row radio">';
                     } else {
                         echo '<div class="row one_input">';
                     }

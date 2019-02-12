@@ -25,6 +25,7 @@
                 osc_add_flash_error_message( _m('Users not enabled') );
                 $this->redirectTo(osc_base_url());
             }
+            osc_run_hook( 'init_user_non_secure' );
         }
 
         //Business Layer...
@@ -37,6 +38,7 @@
                                                     $user = $userManager->findByPrimaryKey( Params::getParam('userId') );
 
                                                     if( $user['s_pass_code'] == Params::getParam('code') && $user['b_enabled']==1) {
+                                                        $userOldEmail = $user['s_email'];
                                                         $userEmailTmp = UserEmailTmp::newInstance()->findByPrimaryKey( Params::getParam('userId') );
                                                         $code = osc_genRandomPassword(50);
                                                         $userManager->update(
@@ -48,6 +50,9 @@
                                                         Alerts::newInstance()->update(array('s_email' => $userEmailTmp['s_new_email']), array('fk_i_user_id' => $userEmailTmp['fk_i_user_id']));
                                                         Session::newInstance()->_set('userEmail', $userEmailTmp['s_new_email']);
                                                         UserEmailTmp::newInstance()->delete(array('s_new_email' => $userEmailTmp['s_new_email']));
+                                                        
+                                                        osc_run_hook('change_email_confirm', Params::getParam('userId'), $userOldEmail, $userEmailTmp['s_new_email']);
+                                                        
                                                         osc_add_flash_ok_message( _m('Your email has been changed successfully'));
                                                         $this->redirectTo( osc_user_profile_url() );
                                                     } else {
@@ -117,8 +122,20 @@
                         return;
                     }
 
-                    $itemsPerPage = Params::getParam('itemsPerPage')!='' ? Params::getParam('itemsPerPage') : 10;
-                    $page         = Params::getParam('iPage') > 0 ? Params::getParam('iPage') -1 : 0;
+                    $itemsPerPage = Params::getParam('itemsPerPage');
+                    if(is_numeric($itemsPerPage) && intval($itemsPerPage)>0) {
+                        $itemsPerPage = intval($itemsPerPage);
+                    } else {
+                        $itemsPerPage = 10;
+                    }
+
+                    $page = Params::getParam('iPage');
+                    if(is_numeric($page) && intval($page)>0) {
+                        $page = intval($page)-1;
+                    } else {
+                        $page = 0;
+                    }
+
                     $total_items  = Item::newInstance()->countItemTypesByUserID($user['pk_i_id'], 'active');
 
                     if($itemsPerPage == 'all') {

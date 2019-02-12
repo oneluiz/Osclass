@@ -75,10 +75,10 @@
 
         function _current($key)
         {
-            if ( isset($this->aCurrent[$key]) && is_array($this->aCurrent[$key]) ) {
-                return $this->aCurrent[$key];
-            } elseif ( is_array($this->aExported[$key]) ) {
-                $this->aCurrent[$key] = current( $this->aExported[$key] );
+            if(is_array($this->aExported[$key])) {
+                if(!isset($this->aCurrent[$key]) ) {
+                   $this->aCurrent[$key] = current( $this->aExported[$key] );
+                }
                 return $this->aCurrent[$key];
             }
             return '';
@@ -129,7 +129,7 @@
 
         function _count($key)
         {
-            if (is_array($this->aExported[$key])) {
+            if (isset($this->aExported[$key]) && is_array($this->aExported[$key])) {
                 return count($this->aExported[$key]);
             }
             return -1; // @TOFIX @FIXME ?? why ? why not 0 ?
